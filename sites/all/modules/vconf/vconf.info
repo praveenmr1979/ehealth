@@ -1,0 +1,8 @@
+"name = Video Conference" 
+
+; Information added by drupal.org packaging script on 2011-04-20
+version = "7.x-2.0"
+core = "7.x"
+project = "vconf"
+datestamp = "1303335118"
+

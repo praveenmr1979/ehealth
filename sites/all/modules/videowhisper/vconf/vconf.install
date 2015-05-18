@@ -1,0 +1,1082 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * Video Conference Integration Module : Installation
+ */
+
+/**
+ * Implements hook_install().
+ */
+function vconf_install() {
+  // TODO The drupal_(un)install_schema functions are called automatically in D7.
+  // drupal_install_schema('vconf')
+	error_reporting(0);
+
+	$form_state=array();
+	$form_state['values']=array();
+	drupal_form_submit('vconf_admini', $form_state);
+	unset($_SESSION['messages']['status']);
+	vwrooms_crsetup('vconf');
+
+	$tag='room_tag';
+
+	$field = array(
+	'field_name' => 'field_vwroomstags',
+	      'type' => 'taxonomy_term_reference',
+	'cardinality'=>FIELD_CARDINALITY_UNLIMITED,
+
+	      'settings' => array(
+	'allowed_values' => array(
+	    array(
+	'vocabulary' => $tag,
+	            'parent' => 0
+	),
+	),
+	),
+	);
+	try{
+	    field_create_field($field);
+	}catch(Exception $e){
+	}
+	try{
+
+	$instance = array(
+	'field_name' => 'field_vwroomstags',
+	'entity_type' => 'node',
+	        'label' => 'Room Tags',
+	        'bundle' => 'vconf',
+	'required' =>false,
+	        'widget' => array(
+	'type' => 'taxonomy_autocomplete'
+	    ),
+	'display' => array(
+	'default' => array('type' => 'hidden'),
+	            'teaser' => array('type' => 'hidden')
+	)
+	);
+
+	field_create_instance($instance);
+
+	}catch(Exception $e){
+	}
+
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function vconf_uninstall() {
+  // TODO The drupal_(un)install_schema functions are called automatically in D7.
+  // drupal_uninstall_schema('vconf')
+
+  db_query("delete from {variable} where name like 'vconf_%'");
+  $result = db_query("SELECT nid FROM {node} WHERE type='vconf'");
+
+  while ($row = $result->fetchAssoc()){
+  	node_delete($row['nid']);
+  	$deleted_count+=1;
+  }
+
+}
+
+/**
+ * Implements hook_schema().
+ *
+ * @return array of Schema API table definitions.
+ */
+function vconf_schema() {
+  $schema['vconf_rooms'] = array(
+    'fields' => array(
+      'vid' => array('type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => "Room ID",
+      ),
+      'nid' => array('type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => "Node ID",
+      ),
+      'timecreated' => array('type' => 'int', 'not null' => TRUE, 'default' => 0,
+        'description' => "Created Timestamp (Unix Timestamp, which is limited to values above Jan 1, 1970)",
+      ),
+      'timelastaccess' => array('type' => 'int', 'not null' => TRUE, 'default' => 0,
+        'description' => "Last Access Timestamp (Unix Timestamp, which is limited to values above Jan 1, 1970)",
+      ),
+      'timeexpire' => array('type' => 'int', 'not null' => TRUE, 'default' => 0,
+        'description' => "Expiration Timestamp (Unix Timestamp, which is limited to values above Jan 1, 1970)",
+      ),
+      'timeout' => array('type' => 'int', 'not null' => TRUE, 'default' => 0,
+        'description' => "Clean if not used",
+      ),
+      'credits' => array('type' => 'int', 'not null' => TRUE, 'default' => 0,
+        'description' => "Available time in minutes",
+      ),
+      'timeused' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0,
+        'description' => "How long was this used for",
+      ),
+      'welcome' => array('type' => 'text', 'not null' => FALSE,
+        // NOTE:  On MySQL, text fields cannot have default values.
+        'description' => "Room welcome message.",
+      ),
+      'background_url' => array('type' => 'text', 'not null' => FALSE,
+        // NOTE:  On MySQL, text fields cannot have default values.
+        'description' => "Room welcome message.",
+      ),
+      'layoutcode' => array('type' => 'text', 'not null' => FALSE,
+        // NOTE:  On MySQL, text fields cannot have default values.
+        'description' => "Room welcome message.",
+      ),
+      'room' => array('type' => 'varchar', 'length' => '64', 'not null' => FALSE,
+        'description' => "Room welcome message.",
+      ),
+      'camwidth' => array(
+        'description' => 'Camera resolution width',
+        'type' => 'int',
+        'size' => "small",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 320,
+      ),
+      'camheight' => array(
+        'description' => 'Camera resolution height',
+        'type' => 'int',
+        'size' => "small",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 240,
+      ),
+      'camfps' => array(
+        'description' => 'Camera frames per second',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 15,
+      ),
+      'micrate' => array(
+        'description' => 'Micrate',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 22,
+      ),
+      'bandwidth' => array(
+        'description' => 'Default bandwidth per stream',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 40960,
+      ),
+      'maxbandwidth' => array(
+        'description' => 'Maximum bandwidth per stream',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 81920,
+      ),
+      'visitors' => array(
+        'description' => 'Allow visitors',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'filterregex' => array('type' => 'varchar', 'length' => '255', 'not null' => FALSE,
+        'description' => "Filter regex.",
+        'default' => "(?i)(fuck|cunt)(?-i)",
+      ),
+      'filterreplace' => array('type' => 'varchar', 'length' => '255', 'not null' => FALSE,
+        'description' => "Filter replace.",
+        'default' => " ** ",
+      ),
+      'autoviewcams' => array(
+        'description' => 'Verbose level',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'panelfiles' => array(
+        'description' => 'Allow emoticons',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+       'panelusers' => array(
+        'description' => 'Allow user panel',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+       'panelroom' => array(
+        'description' => 'Allow room panel',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'file_upload' => array(
+        'description' => 'Setting parameters',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'file_delete' => array(
+        'description' => 'Setting parameters',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'advancedcamsettings' => array(
+        'description' => 'Setting parameters',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'showtimer' => array(
+        'description' => 'Setting parameters',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'enabledvideo' => array(
+        'description' => 'Setting parameters',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'enabledsound' => array(
+        'description' => 'Setting parameters',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'configuresource' => array(
+        'description' => 'Setting parameters',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'showcamsettings' => array(
+        'description' => 'Setting parameters',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'tutorial' => array(
+        'description' => 'Setting parameters',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'fillwindow' => array(
+        'description' => 'Setting parameters',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+
+
+
+
+         'disablead' => array(
+        'description' => 'Setting parameters',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    'users' => array(
+      'description' => 'users',
+      'type' => 'text',
+      'not null' => false,
+    ),
+    'moderators' => array(
+      'description' => 'moderators',
+      'type' => 'text',
+      'not null' => false,
+    ),/*correctable done*/
+  'write_text' => array(
+          'description' => 'Setting parameters',
+          'type' => 'int',
+          'size' => "tiny",
+          'unsigned' => TRUE,
+          'not null' => TRUE,
+          'default' => 1,
+  )
+
+
+
+    ),
+    'indexes' => array(
+      'timelastaccess' => array('timelastaccess'),
+      'room' => array('room'),
+      'nid' => array('nid'),
+    ),
+    'primary key' => array('vid', 'nid'),
+  );
+
+  return $schema;
+}
+
+/**
+ * Implements hook_requirements().
+ */
+function vconf_requirements($phase) {
+  $requirements = array();
+  $t = get_t();
+  if ($phase == 'update') {
+
+    if (!variable_get('vwrooms_saved', 0)) {
+      $requirements['drupalvw'] = array(
+          'title' => $t('n/a'),
+          'description' => t('Video Conference module not installed. Videowhisper Rooms needs to be installed first. Please  reinstall this module.'),
+          'severity' => REQUIREMENT_ERROR,
+  	);
+    }
+
+    return $requirements;
+  }
+
+  if ($phase != 'runtime') {
+    return $requirements;
+  }
+
+
+  if ($phase == 'runtime') {
+
+    $path = variable_get('vconf_path', "/vconf/");
+
+    if (!file_exists("." . $path)) {
+      $requirements['vconf_arr'] = array(
+        'title' => $t('VideoWhisper video conference'),
+        'value' => $t('Not found'),
+        'description' => $t('Please <a target="_blank" href="http://www.videowhisper.com/?p=PHP+Video+Conference">download Video Conference application</a> and upload it in: ') . $path,
+        'severity' => REQUIREMENT_ERROR,
+      );
+    }
+
+    if (!user_access('access video conference room', drupal_anonymous_user())) {
+      $requirements['vconf_access'] = array(
+        'title' => $t('Video Conference anonymous access'),
+        'value' => $t('Access denied'),
+        'description' => $t('Invited parties (that could be anonymous users) cannot currently access chat rooms. Please assign the "access video conference" permission to the anonymous user role.'),
+        'severity' => REQUIREMENT_WARNING,
+      );
+    }
+  }
+
+  return $requirements;
+}
+
+/**
+ * Implements hook_enable().
+ */
+function vconf_enable() {
+	db_query("REPLACE INTO {role_permission} SET permission =  'access video conference room' ,module='vconf', rid = '1';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'access video conference room' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'create video conference room' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit video conference room' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'delete video conference room' ,module='vconf', rid = '2';");
+
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit welcome message' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit instantaccess' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit credits' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit cleanup' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit availability' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit bandwidth' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit maxbandwidth' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit filterregex' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit filterreplace' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit micrate' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit camfps' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit camheight' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit camwidth' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit fillwindow' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit tutorial' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit layoutcode' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit background_url' ,module='vconf', rid = '2';");
+
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit panelusers' ,module='vconf', rid = '2';");//n
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit panelroom' ,module='vconf', rid = '2';");//n
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit write_text' ,module='vconf', rid = '2';");//n
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit ads' ,module='vconf', rid = '2';");//n
+
+
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit panelfiles' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit autoviewcams' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit file_upload' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit file_delete' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit advancedcamsettings' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit showtimer' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit enabledvideo' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit enabledsound' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit configuresource' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'edit showcamsettings' ,module='vconf', rid = '2';");
+
+	db_query("REPLACE INTO {role_permission} SET permission =  'use autoviewcams' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'use panelfiles' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'use panelusers' ,module='vconf', rid = '2';");//n
+	db_query("REPLACE INTO {role_permission} SET permission =  'use panelroom' ,module='vconf', rid = '2';");//n
+	db_query("REPLACE INTO {role_permission} SET permission =  'use write_text' ,module='vconf', rid = '2';");//n
+
+
+	db_query("REPLACE INTO {role_permission} SET permission =  'use file_upload' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'use file_delete' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'use advancedcamsettings' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'use showtimer' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'use enabledvideo' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'use enabledsound' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'use configuresource' ,module='vconf', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'use showcamsettings' ,module='vconf', rid = '2';");
+
+	db_query("REPLACE INTO {role_permission} SET permission =  'use autoviewcams' ,module='vconf', rid = '1';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'use panelfiles' ,module='vconf', rid = '1';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'use panelusers' ,module='vconf', rid = '1';");//n
+	db_query("REPLACE INTO {role_permission} SET permission =  'use panelroom' ,module='vconf', rid = '1';");//n
+	db_query("REPLACE INTO {role_permission} SET permission =  'use write_text' ,module='vconf', rid = '1';");//n
+
+
+	db_query("REPLACE INTO {role_permission} SET permission =  'use file_upload' ,module='vconf', rid = '1';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'use file_delete' ,module='vconf', rid = '1';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'use advancedcamsettings' ,module='vconf', rid = '1';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'use showtimer' ,module='vconf', rid = '1';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'use enabledvideo' ,module='vconf', rid = '1';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'use enabledsound' ,module='vconf', rid = '1';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'use configuresource' ,module='vconf', rid = '1';");
+	db_query("REPLACE INTO {role_permission} SET permission =  'use showcamsettings' ,module='vconf', rid = '1';");
+}
+
+
+function vconf_admini($form, &$form_state) {
+	$form = array();
+
+	$form['vconf_rtmp2'] = array(
+    '#type' => 'textfield',
+    '#title' => t('RTMP application address'),
+    '#default_value' => variable_get('vconf_rtmp2', "rtmp://server-domain-or-ip/videowhisper"),
+    '#size' => 48,
+    '#maxlength' => 255,
+    '#description' => t('RTMP application address on a rtmp server. See <a href="http://www.videowhisper.com/?p=Requirements" target="_blank">Requirements</a> if you need more details about this.'),
+    '#required' => TRUE,
+	);
+
+
+	if (module_exists('vwcredits')) {
+
+
+
+
+		$form['vconf_paidrtmp2'] = array(
+    '#type' => 'textfield',
+    '#title' => t('RTMP application address for Paid Rooms'),
+    '#default_value' => variable_get('vconf_paidrtmp2', ""),
+    '#size' => 48,
+    '#maxlength' => 255,
+    '#description' => t('Separate RTMP application address on a rtmp server for paid rooms. Leave blank to use the same.'),
+    '#required' => false,
+		);
+
+
+
+	}
+
+
+
+
+
+	$form['vconf_amf2'] = array(
+    '#type' => 'textfield',
+    '#title' => t('RTMP AMF'),
+    '#default_value' => variable_get('vconf_amf2', "AMF3"),
+    '#size' => 48,
+    '#maxlength' => 10,
+    '#description' => t("RTMP AMF (AMF3 : Red5, Wowza, FMIS3, FMIS3.5)"),
+    '#required' => TRUE,
+	);
+
+
+	$form['vconf_rtmfp'] = array(
+  '#type' => 'textfield',
+  '#title' => t('RTMFP application address'),
+        '#default_value' => variable_get('vconf_rtmfp', "rtmfp://stratus.adobe.com/f1533cc06e4de4b56399b10d-1a624022ff71/"),
+        '#size' => 48,
+        '#maxlength' => 255,
+  '#description' => t('RTMFP application address on a rtmp server. See <a href="http://www.videowhisper.com/?p=Requirements" target="_blank">Requirements</a> if you need more details about this.'),
+        '#required' => TRUE,
+	);
+	$form['vconf_sgroup'] = array(
+          '#type' => 'textfield',
+          '#title' => t('ServerGroup'),
+          '#default_value' => variable_get('vconf_sgroup', "VideoWhisper"),
+          '#size' => 48,
+          '#maxlength' => 255,
+          '#description' => t('Server Group.'),
+          '#required' => TRUE,
+	);
+
+
+	$form['vconf_room_prefix3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Default room name'),
+    '#default_value' => variable_get('vconf_room_prefix3', "InstantRoom"),
+    '#size' => 24,
+    '#maxlength' => 48,
+    '#description' => t("Default room name. A hash code is added if not changed by room creator."),
+    '#required' => TRUE,
+	);
+
+	$found = "";
+	$path = variable_get('vconf_path', "/" . drupal_get_path("module", "vconf") . "/" . "vconf" . "/");
+	if (file_exists("." . $path)) {
+		$found = t('Application folder detected: ') . $path;
+	}
+	else {
+		$found = t('Please <a target="_blank" href="@url-download">download video conference application</a>. Application folder NOT detected: %path', array('@url-download' => 'http://www.videowhisper.com/?p=PHP+Video+Conference', '%path' => $path));
+	}
+	variable_del('vconf_path');
+/*
+	$form['vconf_path'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Video Conference path'),
+    '#default_value' =>  "/" . drupal_get_path("module", "vconf") . "/" . "vconf" . "/",
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Path for the Video Conference application folder.") . " " . $found,
+    '#required' => TRUE,
+	);
+*/
+	$form['vconf_cammaxbandwidth2'] = array(
+    '#type' => 'textfield',
+    '#title' => t('camMaxBandwidth'),
+    '#default_value' => variable_get('vconf_cammaxbandwidth2', "81920"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set camMaxBandwidth parameters."),
+    '#required' => TRUE,
+	);
+
+	$form['vconf_bufferlive2'] = array(
+    '#type' => 'textfield',
+    '#title' => t('bufferLive'),
+    '#default_value' => variable_get('vconf_bufferlive2', "0.1"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set bufferLive parameters."),
+    '#required' => TRUE,
+	);
+
+	$form['vconf_bufferfull2'] = array(
+    '#type' => 'textfield',
+    '#title' => t('bufferFull'),
+    '#default_value' => variable_get('vconf_bufferfull2', "0.1"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set bufferFull parameters."),
+    '#required' => TRUE,
+	);
+
+	$form['vconf_bufferliveplayback2'] = array(
+    '#type' => 'textfield',
+    '#title' => t('bufferLivePlayback'),
+    '#default_value' => variable_get('vconf_bufferliveplayback2', "0.1"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set bufferLivePlayback parameters."),
+    '#required' => TRUE,
+	);
+
+	$form['vconf_bufferfullplayback2'] = array(
+    '#type' => 'textfield',
+    '#title' => t('bufferFullPlayback'),
+    '#default_value' => variable_get('vconf_bufferfullplayback2', "0.1"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set bufferFullPlayback parameters."),
+    '#required' => TRUE,
+	);
+
+	$form['vconf_disablebandwidthdetection2'] = array(
+    '#type' => 'radios',
+    '#title' => t('disableBandwidthDetection'),
+    '#default_value' => variable_get('vconf_disablebandwidthdetection2', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set disableBandwidthDetection parameters'),
+	);
+
+	$form['vconf_limitbybandwidth2'] = array(
+    '#type' => 'radios',
+    '#title' => t('limitBybandwidth'),
+    '#default_value' => variable_get('vconf_limitbybandwidth2', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set limitBybandwidth parameters'),
+	);
+
+	$form['vconf_disableuploaddetection2'] = array(
+    '#type' => 'radios',
+    '#title' => t('disableUploadDetection'),
+    '#default_value' => variable_get('vconf_disableuploaddetection2', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set disableUploadDetection parameters'),
+	);
+
+	$form['vconf_tutorial2'] = array(
+    '#type' => 'radios',
+    '#title' => t('Tutorial'),
+    '#default_value' => variable_get('vconf_tutorial2', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set Tutorial parameters'),
+	);
+
+	$form['vconf_fillwindow2'] = array(
+    '#type' => 'radios',
+    '#title' => t('fillwindow'),
+    '#default_value' => variable_get('vconf_fillwindow2', 0),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set fillwindow parameters'),
+	);
+
+	$form['vconf_autoviewcams2'] = array(
+    '#type' => 'radios',
+    '#title' => t('autoViewcams'),
+    '#default_value' => variable_get('vconf_autoviewcams2', 1),
+    '#options' => array(t('No'), t('Yes'),),
+    '#description' => t("Set autoViewcams parameters."),
+	);
+
+	$form['vconf_panelfiles2'] = array(
+    '#type' => 'radios',
+    '#title' => t('panelFiles'),
+    '#default_value' => variable_get('vconf_panelfiles2', 1),
+    '#options' => array(t('No'), t('Yes'),),
+    '#description' => t("Set panelFiles parameters."),
+	);
+
+	$form['vconf_panelusers'] = array(
+  '#type' => 'radios', '#default_value' => variable_get('vconf_panelusers', '1'),
+   '#options' => array(t('No'), t('Yes'),),
+   '#title' => t('Enable user list Panel'),
+
+	);
+
+
+	$form['vconf_panelroom'] = array(
+  '#type' => 'radios',
+  '#default_value' => variable_get('vconf_panelroom', '1'),
+  '#options' => array(t('No'), t('Yes'),),
+
+  '#title' => t('Enable room change Panel'),
+
+	);
+
+
+	$form['vconf_file_upload2'] = array(
+    '#type' => 'radios',
+    '#title' => t('fileUpload'),
+    '#default_value' => variable_get('vconf_file_upload2', 1),
+    '#options' => array(t('No'), t('Yes'),),
+    '#description' => t("Set file_upload parameters."),
+	);
+
+	$form['vconf_file_delete2'] = array(
+    '#type' => 'radios',
+    '#title' => t('fileDelete'),
+    '#default_value' => variable_get('vconf_file_delete2', 1),
+    '#options' => array(t('No'), t('Yes'),),
+    '#description' => t("Set file_delete parameters."),
+	);
+
+	$form['vconf_showtimer2'] = array(
+    '#type' => 'radios',
+    '#title' => t('showTimer'),
+    '#default_value' => variable_get('vconf_showtimer2', 1),
+    '#options' => array(t('No'), t('Yes'),),
+    '#description' => t('Set showTimer parameters'),
+	);
+
+	$form['vconf_enabledvideo2'] = array(
+    '#type' => 'radios',
+    '#title' => t('enabledVideo'),
+    '#default_value' => variable_get('vconf_enabledvideo2', 1),
+    '#options' => array(t('No'), t('Yes'),),
+    '#description' => t('Set enabledVideo parameters'),
+	);
+
+	$form['vconf_enabledsound2'] = array(
+    '#type' => 'radios',
+    '#title' => t('enabledSound'),
+    '#default_value' => variable_get('vconf_enabledsound2', 1),
+    '#options' => array(t('No'), t('Yes'),),
+    '#description' => t('Set enabledSound parameters'),
+	);
+
+	$form['vconf_configuresource2'] = array(
+    '#type' => 'radios',
+    '#title' => t('configureSource'),
+    '#default_value' => variable_get('vconf_configuresource2', 1),
+    '#options' => array(t('No'), t('Yes'),),
+    '#description' => t('Set configureSource parameters'),
+	);
+
+	$form['vconf_advancedcamsettings2'] = array(
+    '#type' => 'radios',
+    '#title' => t('advancedcamsettings'),
+    '#default_value' => variable_get('vconf_advancedcamsettings2', 1),
+    '#options' => array(t('No'), t('Yes'),),
+    '#description' => t('Set advancedcamsettings parameters'),
+	);
+
+	$form['vconf_showcamsettings2'] = array(
+    '#type' => 'radios',
+    '#title' => t('showCamsettings'),
+    '#default_value' => variable_get('vconf_showcamsettings2', 1),
+    '#options' => array(t('No'), t('Yes'),),
+    '#description' => t('Set showCamsettings parameters'),
+	);
+
+
+
+
+
+
+
+	$form['vconf_adserver'] = array(
+  '#type' => 'textfield', '#default_value' => variable_get('vconf_adserver', ''),
+  '#title' => t('Ad Server'),
+  '#description' => t('Ad management server.'),
+
+	);
+	$form['vconf_adtimeout'] = array(
+  '#type' => 'textfield', '#default_value' => variable_get('vconf_adtimeout', '15000'),
+  '#title' => t('Ad Timeout(milliseconds)'),
+
+	);
+
+	$form['vconf_adinterval'] = array(
+  '#type' => 'textfield', '#default_value' => variable_get('vconf_adinterval', '240000'),
+  '#title' => t('Ad Interval(milliseconds)'),
+
+	);
+
+	$form['vconf_status'] = array(
+  '#type' => 'textfield', '#default_value' => variable_get('vconf_status', '20000'),
+  '#title' => t('Status Interval(milliseconds)'),
+
+	);
+
+	$form['vconf_newwatch'] = array(
+  '#type' => 'radios',
+  '#options' => array('Yes', 'No'),
+  '#default_value' => variable_get('vconf_newwatch', '1'),
+  '#title' => t('newwatch'),
+
+	);
+
+	$form['vconf_regularwatch'] = array(
+  '#type' => 'radios',
+  '#options' => array('Yes', 'No'),
+  '#default_value' => variable_get('vconf_regularwatch', '1'),
+  '#title' => t('regularwatch'),
+
+	);
+	$form['vconf_privatetxt'] = array(
+  '#type' => 'radios',
+  '#options' => array('Yes', 'No'),
+  '#default_value' => variable_get('vconf_privatetxt', '1'),
+  '#title' => t('privatetextchat'),
+
+	);/*correctable done*/
+	$form['vconf_write_text3'] = array(
+      '#type' => 'radios',
+      '#title' => t('write_text'),
+      '#default_value' => variable_get('vconf_write_text3', 1),
+      '#options' => array(t('No'), t('Yes')),
+      '#description' => t('Set write_text parameters'),
+	);
+
+
+	$form['fre'] = array('#type' => 'fieldset', '#title' => t('Additional free mode settings'), '#collapsible' => true, '#collapsed' => true);
+	$options = implode(",", array("320x240" => "320x240", "160x120" => "160x120", "176x144" => "176x144"));
+
+	$form['fre']['vconf_defaultresolution'] = array(
+  '#type' => 'textfield', '#default_value' => variable_get('vconf_defaultresolution', $options),
+  '#title' => t('Resolutions'),
+  '#description' => t('Comma separated camera resoluton  list: 320X240,160X120,176X144,352X288,640X480 *'),
+
+	);
+
+	$form['fre']['vconf_defaultresolutiond'] = array(
+    '#type' => 'textfield', '#default_value' => variable_get('vconf_defaultresolutiond', '176x144'),
+    '#title' => t('Default Resolution'),
+	'#options' => array("320x240" => "320x240", "160x120" => "160x120", "176x144" => "176x144"),
+	);
+
+
+	$options = implode(",", array("15" => "15", "10" => "10", "12" => "12", "20" => "20"));
+
+	$form['fre']['vconf_defaultcamfps'] = array(
+    '#type' => 'textfield', '#default_value' => variable_get('vconf_defaultcamfps', $options),
+    '#title' => t('Camera FPS'),
+    '#description' => t('Comma separated camera frames per second list list :15,10,12,20,25,30 *'),
+
+	);
+
+	$form['fre']['vconf_defaultcamfpsd'] = array(
+      '#type' => 'textfield', '#default_value' => variable_get('vconf_defaultcamfpsd', '20'),
+      	'#options' => array("15" => "15", "10" => "10", "12" => "12", "20" => "20"),
+      '#title' => t('Default Camera FPS'),
+
+	);
+
+	$options = implode(",", array("22" => "22", "11" => "11"));
+
+
+	$form['fre']['vconf_defaultmicrate'] = array(
+    '#type' => 'textfield', '#default_value' => variable_get('vconf_defaultmicrate', $options),
+    '#title' => t('Micrates'),
+    '#description' => t('Comma separated  list : 22,11,44,48 *'),
+
+	);
+
+	$form['fre']['vconf_defaultmicrated'] = array(
+      '#type' => 'textfield', '#default_value' => variable_get('vconf_defaultmicrated', '22'),
+      '#title' => t('Default Micrate'),
+      '#options' => array("22" => "22", "11" => "11"),
+
+	);
+
+
+
+	$form['fre']['vconf_defaultbandwidth'] = array(
+  '#type' => 'textfield', '#default_value' => variable_get('vconf_defaultbandwidth', '50000'),
+  '#title' => t('Bandwidth'),
+    '#description' => t("Default bandwidth per video stream in bytes per second. "),
+  '#size' => '6',
+  '#maxlength' => 8,
+
+	);
+
+	$form['fre']['vconf_defaultmaxbandwidth'] = array(
+  '#type' => 'textfield', '#default_value' => variable_get('vconf_defaultmaxbandwidth', '100000'),
+  '#title' => t('Max Bandwidth'),
+    '#description' => t("Maximum bandwidth per video stream in bytes per second."),
+   '#size' => '6',
+    '#maxlength' => 8,
+	);
+
+
+
+
+	if (module_exists('vwcredits')) {
+
+		$form['paid'] = array('#type' => 'fieldset', '#collapsible' => true, '#collapsed' => true, '#title' => t('Additional Settings for paid mode'));
+
+		$options = implode(",", array("320x240" => "320x240", "160x120" => "160x120", "176x144" => "176x144", '352x288' => '352x288', '640x480' => '640x480' ));
+
+		$form[paid]['vconf_paidresolution'] = array(
+  	  '#type' => 'textfield', '#default_value' => variable_get('vconf_paidresolution', $options),
+  	  '#title' => t('Resolutions'),
+  	  '#description' => t('Comma separated camera resolution list for paid rooms *'),
+  	  	'#size' => '60',
+  	  '#maxlength' => 80,
+
+		);
+
+		$form[paid]['vconf_paidresolutiond'] = array(
+  	  	  '#type' => 'textfield', '#default_value' => variable_get('vconf_paidresolutiond', '640x480'),
+  	  	  '#title' => t('Default Resolution'),
+  	  	  	'#options' => array("320x240" => "320x240", "160x120" => "160x120", "176x144" => "176x144", '352x288' => '352x288', '640x480' => '640x480' ),
+  	  	  '#maxlength' => 80,
+
+		);
+
+
+		$options = implode(",", array("15" => "15", "10" => "10", "12" => "12", "20" => "20", "25" => "25", "30" => "30"));
+
+
+
+
+		$form['paid']['vconf_paidcamfps'] = array(
+    '#type' => 'textfield', '#default_value' => variable_get('vconf_paidcamfps', $options),
+    '#title' => t('Camera FPS'),
+    '#description' => t('Comma separated camera frames per second list for paid rooms *'),
+     	'#size' => '60',
+    '#maxlength' => 80,
+
+		);
+
+		$form['paid']['vconf_paidcamfpsd'] = array(
+    '#type' => 'textfield', '#default_value' => variable_get('vconf_paidcamfpsd', '30'),
+    '#title' => t('Default Camera FPS'),
+    '#options' => array("15" => "15", "10" => "10", "12" => "12", "20" => "20", "25" => "25", "30" => "30"),
+    '#maxlength' => 80,
+
+		);
+
+		$options = implode(",", array("22" => "22", "11" => "11", "44" => "44", "48" => "48"));
+
+		$form['paid']['vconf_paidmicrate'] = array(
+    '#type' => 'textfield', '#default_value' => variable_get('vconf_paidmicrate', $options),
+    '#title' => t('Micrates'),
+    '#description' => t('Comma separated  list of micrate for paid rooms *'),
+    	'#size' => '60',
+    '#maxlength' => 80,
+
+		);
+
+
+		$form['paid']['vconf_paidmicrated'] = array(
+  '#type' => 'textfield', '#default_value' => variable_get('vconf_paidmicrated', '48'),
+  '#title' => t('Default Micrate'),
+  '#options' => array("22" => "22", "11" => "11", "44" => "44", "48" => "48"),
+      '#maxlength' => 80,
+
+		);
+
+
+
+		$form['paid']['vconf_paidbandwidth'] = array(
+    '#type' => 'textfield', '#default_value' => variable_get('vconf_paidbandwidth', '70000'),
+    '#title' => t('Bandwidth'),
+    '#description' => t("Default bandwidth per video stream in bytes per second for paid rooms."),
+    	'#size' => '6',
+    '#maxlength' => 8,
+
+		);
+		$form['paid']['vconf_paidmaxbandwidth'] = array(
+    '#type' => 'textfield', '#default_value' => variable_get('vconf_paidmaxbandwidth', '200000'),
+    '#title' => t('Max. Bandwidth'),
+    '#description' => t("Maximum bandwidth per video stream in bytes per second for paid rooms."),
+  	'#size' => '6',
+    '#maxlength' => 8,
+
+		);
+
+
+	}
+
+
+
+	/*
+	 $form['vconf_external']=array(
+	'#type'=>'textfield','#default_value'=>variable_get('vconf_external','20000'),
+	'#title'=>t('External Chat Interval'),
+	'#description'=>t('in milliseconds. Set 0 or any number lower than 500 to disable.
+	Many of these parameters are also working with vv_login.php and vs_login.php for watch and video interfaces')
+	);
+	*/
+
+
+
+
+	return system_settings_form($form);
+}
+
+
+
+if(!function_exists('vwrooms_crsetup')){
+
+
+	function vwrooms_crsetup($type){
+		if(!module_exists('vwcredits'))
+		return;
+		$t=$type;
+
+		$form['f_' . $type]["vwcredits_{$t}_idletime"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Transfer apply interval'), '#default_value' => variable_get("vwcredits_{$t}_idletime", '60'), '#description' => t('after x seconds pending transactions will be applied'));
+
+
+		$form['f_' . $type]["vwcredits_{$t}_mm"] = array(
+	'#type' => 'select', '#title' => t('Module Mode'), '#descriptions' => t('Module mode'), '#default_value' => variable_get("vwcredits_{$t}_mm", 'User')
+		, '#options' => array('Free' => t('Free'), 'Paid' => t('Paid'), 'User' => t('As configured by room owner.'))
+		);
+
+
+		$form['f_' . $type]["vwcredits_{$t}_defaultgracetime"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Grace Period'), '#descriptions' => t('Grace Period'), '#default_value' => variable_get("vwcredits_{$t}_defaultgracetime", '30')
+		, '#description' => t('In seconds')
+		);
+
+		$form['f_' . $type]["vwcredits_{$t}_maxgracetime"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Max Grace Period'), '#descriptions' => t('When owner can change'), '#default_value' => variable_get("vwcredits_{$t}_maxgracetime", '300')
+		, '#description' => t('In seconds')
+
+		);
+		$form['f_' . $type]["vwcredits_{$t}_mingracetime"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Min Grace Period'), '#descriptions' => t('When owner can change'), '#default_value' => variable_get("vwcredits_{$t}_mingracetime", '0')
+		, '#description' => t('In seconds')
+
+		);
+
+
+
+		$form['f_' . $type]["vwcredits_{$t}_ownerscost"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Room Owner\'s cost'), '#default_value' => variable_get("vwcredits_{$t}_ownerscost", '0.1')
+
+		);
+
+		$form['f_' . $type]["vwcredits_{$t}_ownersroomcost"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Cost of using own room'), '#default_value' => variable_get("vwcredits_{$t}_ownersroomcost", '0.1')
+
+		);
+
+		$form['f_' . $type]["vwcredits_{$t}_roomcost"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('User Cost'), '#default_value' => variable_get("vwcredits_{$t}_roomcost", '4.0')
+		);
+
+		$form['f_' . $type]["vwcredits_{$t}_maxroomcost"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Max User Cost'), '#description' => t('When room owner can set'), '#default_value' => variable_get("vwcredits_{$t}_maxroomcost", '10')
+		);
+
+		$form['f_' . $type]["vwcredits_{$t}_minroomcost"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Min User Cost'), '#description' => t('When room owner can set'), '#default_value' => variable_get("vwcredits_{$t}_minroomcost", '0.0')
+		);
+
+		$form['f_' . $type]["vwcredits_{$t}_ownersgain"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Owner\'s gain'), '#default_value' => variable_get("vwcredits_{$t}_ownersgain", '0.75')
+		, '#description' => t('within 0-1'));
+
+		$arr=	    $form['f_' . $type];
+		foreach ($arr as $nm => $v) {
+			$value = $v['#default_value'];
+
+			variable_set($nm, $value);
+
+		}
+
+
+
+
+
+	}
+}

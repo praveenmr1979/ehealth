@@ -1,0 +1,114 @@
+name = ehealth
+description = ehealth
+core = 7.x
+engine = phptemplate
+screenshot = screenshot.png
+base theme = omega
+version = 1.x
+
+stylesheets[all][] = css/awesome-font.css
+stylesheets[all][] = css/style.css
+stylesheets[all][] = css/responsive.css
+scripts[] = js/jquery.uniform.js
+scripts[] = js/jquery.responsify.init.js
+scripts[] = js/superfish.js
+scripts[] = js/custom.js
+
+; ========================================
+; Regions
+; ========================================
+regions[page_top] = Page Top
+regions[page_bottom] = Page Bottom
+regions[page_top_timer] = Page Top Timer
+regions[content] = Content
+regions[top-header] = Top Header
+regions[top-header-hospital] = Top Header Hospitals
+regions[hospital-logo] = Hospital Logo
+regions[hospital-menu] = Hospital Menu
+regions[header] = Header
+regions[slideshow] = Slideshow
+regions[navigation] = Navigation
+regions[highlighted] = Highlighted
+regions[help] = Help
+regions[sidebar_first] = First Sidebar
+regions[sidebar_second] = Second Sidebar
+regions[sidebar_third] = Third Sidebar
+regions[sidebar_fourth] = Fourth Sidebar
+regions[mission_vision] = Mission & Vision
+regions[dashboard-menu] = Dashboard Menu
+regions[schemes_programes] = Schemes & Programes
+regions[more_to_watch] = More to Watch
+regions[videos] = Videos
+regions[download_videos] = Download Videos
+regions[footer1] = Footer 1
+regions[footer2] = Footer 2
+regions[footer3] = Footer 3
+regions[footer4] = Footer 4
+regions[footer] = Footer
+regions[footer-hospital] = Hospital Footer
+
+regions[hospital-sb-1] = Hospital Sidebar 1
+regions[hospital-content] = Hospital content
+regions[hospital-sb-2] = Hospital Sidebar 2
+
+; ========================================
+; Zones
+; ========================================
+zones[header] = Header
+zones[content] = Content
+zones[footer] = Footer
+
+; ========================================
+; Settings
+; ========================================
+settings[toggle_logo] = 1
+settings[toggle_name] = 1
+settings[toggle_slogan] = 1
+settings[toggle_node_user_picture] = 1
+settings[toggle_comment_user_picture] = 1
+settings[toggle_comment_user_verification] = 1
+settings[toggle_favicon] = 1
+settings[toggle_main_menu] = 1
+settings[toggle_secondary_menu] = 1
+settings[omega_toggle_front_page_content] = 1
+settings[default_logo] = 0
+settings[logo_path] = public://logo_2.png
+settings[default_favicon] = 1
+settings[favicon_path] = ""
+settings[favicon_upload] = ""
+settings[omega_enable_warning] = 1
+settings[omega_toggle_extension_assets] = 1
+settings[omega_libraries][selectivizr][status] = 0
+settings[omega_libraries][respond][status] = 0
+settings[omega_libraries][pie][status] = 0
+settings[omega_libraries][html5shiv][status] = 0
+settings[omega_toggle_extension_development] = 1
+settings[omega_enable_export_reminder] = 1
+settings[omega_rebuild_theme_registry] = 0
+settings[omega_rebuild_aggregates] = 0
+settings[omega_browser_width_indicator] = 0
+settings[omega_livereload] = 0
+settings[omega_livereload_script] = http://localhost:35729/livereload.js
+settings[omega_livereload_host] = localhost
+settings[omega_livereload_port] = 35729
+settings[omega_demo_regions] = 1
+settings[omega_demo_regions_list][content] = content
+settings[omega_demo_regions_list][branding] = branding
+settings[omega_demo_regions_list][header] = header
+settings[omega_demo_regions_list][navigation] = navigation
+settings[omega_demo_regions_list][highlighted] = highlighted
+settings[omega_demo_regions_list][help] = help
+settings[omega_demo_regions_list][sidebar_first] = sidebar_first
+settings[omega_demo_regions_list][sidebar_second] = sidebar_second
+settings[omega_demo_regions_list][footer] = footer
+settings[omega_toggle_extension_compatibility] = 1
+settings[omega_conditional_classes_html] = 1
+settings[omega_apple_touch] = 1
+settings[omega_cleartype] = 1
+settings[omega_handheld_friendly] = 1
+settings[omega_mobile_optimized] = 1
+settings[omega_viewport] = 1
+settings[omega_viewport_user_scaleable] = 1
+settings[omega_chrome_edge] = 1
+settings[omega_toggle_extension_layouts] = 0
+settings[omega_layout] = ""

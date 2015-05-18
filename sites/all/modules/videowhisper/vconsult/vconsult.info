@@ -1,0 +1,16 @@
+; $Id$
+name = Video Consultation
+description = Video Consultation integration module, manages instant video chat rooms.
+core = 7.x
+dependencies[] = vwrooms
+configure = admin/config/videowhisper/vconsult
+package = "VIDEOWHISPER"
+
+version = "7.x-3.25"
+
+; Information added by Drupal.org packaging script on 2014-11-15
+version = "7.x-1.5"
+core = "7.x"
+project = "videowhisper"
+datestamp = "1416072782"
+

@@ -1,0 +1,492 @@
+html {
+    font-size: 13px;
+    height: 100%;
+	font-family: arial;
+}
+
+body {
+    background: none repeat scroll 0 0 #FFFFFF;
+    height: 100%;
+    margin: 0px;
+}
+
+body,p,h1,h2,h3,ul,li{
+    margin: 0px;
+	padding:0px;
+	list-style: none;
+}
+
+.container {
+    background: none repeat scroll 0 0 #FFFFFF;
+    display: block;
+    margin: 0 auto;
+    width: 1170px;
+}
+
+.logo {
+    float: left;
+    width: 250px;
+}
+content.container {
+	clear: both;
+}
+.content-left .mission-first,
+.content-right .schemes-first{
+	float:left;
+	color:#0F75BD;
+	font-weight:bold;
+}
+.vision{
+	overflow: hidden;
+    padding-left: 10px;
+}
+.content-left{
+    float: left;
+    padding: 0 30px 0 0;
+    width: 610px;
+}
+.content-right h1,
+.content-left h1{
+	font-size: 39px;
+}
+.sub-title{
+    color: #1074BF;
+    font-size: 18px;
+    padding-bottom: 20px;
+}
+.mission-para{
+	font-size: 14px;
+	padding-bottom:20px;
+	line-height: 19px;
+}
+
+.content-right{
+    overflow: hidden;
+    width: 500px;
+	padding: 0 15px 0 12px;
+}
+.read-more a{
+	 color: #3281C6;
+	float:right;
+	 text-decoration: none;
+}
+.more-to-watch{
+	width:250px;
+	padding-right: 15px;
+	padding-top: 5px;
+}
+.download-videos .expanded,
+.more-to-watch .expanded{
+   background: none repeat scroll 0 0 #0F75BF;
+   padding: 6px 10px;
+   margin-left: 10px;
+}
+.download-videos .expanded a,
+.more-to-watch .expanded a{
+	color:#FFF;
+	font-weight: bold;
+    text-decoration: none;
+}
+.download-videos {
+	overflow: hidden;
+	padding-top: 5px;
+	 width: 250px;
+ }
+ .more-to-watch .sub-menu  li,
+ .download-videos .sub-menu li{
+ padding:5px;
+}
+.more-to-watch .sub-menu  li a,
+.download-videos .sub-menu li a{
+	color:#000;
+	text-decoration: none;
+ }
+  .more-to-watch .sub-menu ,
+ .download-videos .sub-menu {
+ padding: 12px 15px 15px 12px;
+}
+ .download-videos .next,
+  .more-to-watch  .next{
+	float:right;
+}
+.watch-click{
+  background: none repeat scroll 0 0 #C5C3C4;
+    padding: 5px;
+	overflow: hidden;
+}
+.prev-next, .item-list{
+    margin: 0 10px !important;
+    padding: 6px 16px !important;
+	  background: none repeat scroll 0 0 #C5C3C4;
+}
+.watch-click p,.watch-click a,
+.prev-next a, .item-list a{
+  color:#1075BD;
+  font-weight:bold;
+}
+.video-link{
+	border: 1px solid #1075BD;
+	margin-bottom: 10px;
+}
+/*----FOOTER--------*/
+footer.container {
+	background: none repeat scroll 0 0 #5E5E5E;
+	overflow: hidden;
+}
+footer ul.menu{
+	float:left;
+	color:#DCDCDC;
+}
+footer ul.menu li.menu{
+	float:none;
+}
+footer .menu li a{
+	color:#DCDCDC;
+	padding:20px;
+	text-decoration: none;
+}
+footer .menu li {
+	padding:5px;
+}
+footer .menu li.expanded > a{
+	color:#DCDCDC;
+	font-weight:bold;
+	font-size: 17px;
+}
+footer .menu-section{
+    margin: 0 auto;
+     width: 900px;
+	overflow: hidden;
+    padding: 30px 0 20px 0;
+}
+.sub-menu{
+	padding-top:20px;
+}
+.sub-menu a{
+	font-size: 14px;
+}
+.menu-first > .menu,.menu-second  .menu,.menu-third .menu{
+ padding: 0 40px 0 0;
+ }
+.footer-bottom{
+	background: none repeat scroll 0 0 #fff;
+	overflow: hidden;
+}
+.more-to-watch,.video-link,.video-para,
+.jkt-logo,.footer-para{
+	float:left;
+}
+p.video-para{
+	color: #000000;
+}
+.click-download{
+	float:right;
+}
+.jk-logo{
+	overflow: hidden;
+	padding-top:10px;
+	padding-left: 65px;
+ }
+.jkt-logo{
+ 	padding-top:19px;
+}
+.footer-para{
+	padding:37px 20px 15px;
+ }
+.powered{
+    color: #0F75BF;
+    font-size: 15px;
+    text-align: center;
+	 padding-bottom: 30px;
+}
+.disclaimer{
+    color: #444444;
+    font-size: 14px;
+}
+.date-time-day{
+    background: none repeat scroll 0 0 #0f75bf;
+    color: #ffffff;
+    float: left;
+    padding: 3px;
+    text-align: center;
+    width: 600px;
+}
+.e-health-login{
+    background: none repeat scroll 0 0 #0F75BF;
+    overflow: hidden;
+    padding: 24px 18px 23px 15px;
+}
+.e-health-login a{
+    color: #ffffff;
+    font-size: 15px;
+}
+.navbar-nav{
+    float: left;
+    overflow: hidden;
+    width: 678px;
+}
+.navbar-nav li{
+	float:left;
+	padding: 0 3px;
+}
+.header-right-top{
+    background: none repeat scroll 0 0 #3e3e3e;
+    float: left;
+    overflow: hidden;
+}
+.header-right-top a{
+    color: #ffffff;
+    display: block;
+    font-weight: bold;
+    padding: 15px 20px;
+    text-align: center;
+    text-decoration: none;
+	font-size: 15px;
+}
+
+.home-menu{
+    background: url("../images/home-menu.jpg") no-repeat scroll 0 0 transparent;
+    display: block;
+    height: 34px;
+    width: 107px;
+	font-size: 0;
+}
+.page-menu{
+    background: url("../images/my-page-menu.jpg") no-repeat scroll 0 0 transparent;
+    display: block;
+    height: 34px;
+    width: 107px;
+	font-size: 0;
+}
+.events-menu{
+    background: url("../images/event-menu.jpg") no-repeat scroll 0 0 transparent;
+    display: block;
+    height: 34px;
+    width: 107px;
+	font-size: 0;
+}
+.faq-menu{
+    background: url("../images/faqs.jpg") no-repeat scroll 0 0 transparent;
+    display: block;
+    height: 34px;
+    width: 107px;
+	font-size: 0;
+}
+.events-menu{
+    background: url("../images/event-menu.jpg") no-repeat scroll 0 0 transparent;
+    display: block;
+    height: 34px;
+    width: 107px;
+	font-size: 0;
+}
+.faq-menu{
+    background: url("../images/faqs.jpg") no-repeat scroll 0 0 transparent;
+    display: block;
+    height: 34px;
+    width: 107px;
+	font-size: 0;
+}
+.content-top-first,.content-top-second,.content-top-third,#block-views-news-and-events-block, #views-exposed-form-browse-hospital-page{
+	width:270px;
+	float: left;
+	margin-right: 20px;
+}
+.content-top-third ,
+#block-views-news-and-events-block,
+#views-exposed-form-browse-hospital-page,
+.content-top-first{
+	background: -webkit-linear-gradient(#EBEBEB,#FDF9FA); /* For Safari 5.1 to 6.0 */
+    background: -o-linear-gradient(#EBEBEB, #FDF9FA); /* For Opera 11.1 to 12.0 */
+    background: -moz-linear-gradient(#EBEBEB, #FDF9FA); /* For Firefox 3.6 to 15 */
+    background: linear-gradient(#EBEBEB, #FDF9FA); /* Standard syntax (must be last) */
+    padding: 30px 10px;
+    position: relative;
+     width: 260px;
+	 
+}
+.content-top-first, #views-exposed-form-browse-hospital-page{
+	margin-left: 10px;
+}
+.district-select{
+    font-size: 15px;
+    font-weight: bold;
+	padding: 10px 0;
+}
+
+#views-exposed-form-browse-hospital-page label {
+	font-size: 15px;
+    font-weight: bold;
+	padding: 10px 0;
+}
+
+#views-exposed-form-browse-hospital-page #edit-submit-browse-hospital {
+    background: none repeat scroll 0 0 #0f75bd;
+    color: #fff;
+    padding: 6px 15px;
+    text-decoration: none;
+}
+#views-exposed-form-browse-hospital-page .views-submit-button {
+	padding: 0;
+}
+.content-top-first select{
+	height: 28px;
+    width: 185px;
+}
+#views-exposed-form-browse-hospital-page select{
+	height: 28px;
+    width: 185px;
+}
+.content-top-third h1,
+.content-top-third h2,
+#block-views-news-and-events-block h1,
+#block-views-news-and-events-block h2,
+#views-exposed-form-browse-hospital-page h1,
+.content-top-first h1{
+    background: none repeat scroll 0 0 #0f75bf;
+    color: #ffffff;
+    font-size: 20px;
+    padding: 5px 18px;
+    position: absolute;
+    right: 61px;
+    top: -26px;
+}
+.content-top-third p,
+#block-views-news-and-events-block p{
+    font-size: 14px;
+    padding: 10px;
+}
+
+.content-top-third .field-content,
+#block-views-news-and-events-block .field-content{
+    font-size: 14px;
+    padding: 10px;
+}
+.content-top-fourth,
+#block-views-custom-events-block,
+#block-views-messages-block,
+.content-top-second{
+    background: none repeat scroll 0 0 #B2DDFD;
+	padding: 15px;
+	overflow: hidden;
+	top: -26px;  
+	background: -webkit-linear-gradient(#E6F4FF, #B8DFFC); /* For Safari 5.1 to 6.0 */
+    background: -o-linear-gradient(#E6F4FF, #B8DFFC); /* For Opera 11.1 to 12.0 */
+    background: -moz-linear-gradient(#E6F4FF, #B8DFFC); /* For Firefox 3.6 to 15 */
+    background: linear-gradient(#E6F4FF, #B8DFFC); /* Standard syntax (must be last) */
+}
+.content-top .content-top-second, #block-views-messages-block{
+	min-height: 259px;
+    padding: 0 0 30px;
+}
+.content-top-second p, #block-views-messages-block p{
+	padding: 7px;
+	font-size:15px;
+}
+.content-top{
+	 margin-top: 30px;
+	 position:relative;
+}
+.content-top-fifth{
+    background: none repeat scroll 0 0 #e1e3e2;
+    height: 200px;
+    position: absolute;
+    top: 25px;
+    width: 1170px;
+    z-index: 0;
+}
+.content-top-second, .content-top-first,.content-top-third, #block-views-news-and-events-block, .content-top-fourth,#block-views-custom-events-block, #views-exposed-form-browse-hospital-page, #block-views-messages-block{
+	position:relative;
+	z-index:1;
+	box-shadow: 1px 1px 1px #ccc;
+	min-height: 203px;
+}
+.para-top{
+  padding: 10px 0;
+}
+.para-top a{
+	color: #0e76bd;
+    font-weight: bold;
+}
+.event-image{
+	float: left;
+}
+.content-top-fourth h3,
+#block-views-custom-events-block h2{
+    float: left;
+    padding-left: 20px;
+    text-align: center;
+    width: 142px;
+	 font-size: 27px;
+}
+.content-top-fourth p,
+#block-views-custom-events-block p{
+clear:both;
+}
+.banner img{
+	width: 1170px;
+}
+.content-top-fourth .date-month
+#block-views-custom-events-block .date-month{
+    background: none repeat scroll 0 0 #0f75bd;
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: bold;
+     padding: 10px;
+    text-align: center;
+}
+.pulse{
+    font-size: 17px;
+    padding: 0 33px;
+    text-align: center;
+}
+.search-bar{
+    overflow: hidden;
+    padding-left: 10px;
+}
+.go-class{
+    background: none repeat scroll 0 0 #0f75bd;
+    color: #fff;
+    padding: 6px 15px;
+    text-decoration: none;
+}
+.photo-health h2{
+    background: none repeat scroll 0 0 #dbdbdd;
+    color: #000;
+    font-size: 14px;
+    margin-top: 10px;
+    overflow: hidden;
+    padding: 6px 10px 7px 7px;
+}
+.photo-health img{
+	float:left;
+}
+.photo-health{
+	overflow:hidden;
+}
+.mission-wrapper {
+	clear:both;
+}
+
+.views-field-field-message-image .field-content h2{
+    background: none repeat scroll 0 0 #dbdbdd;
+    color: #000;
+    font-size: 14px;
+    margin-top: 10px;
+    overflow: hidden;
+    padding: 6px 10px 7px 7px;
+}
+.views-field-field-message-image .field-content img{
+	float:left;
+}
+.views-field-field-message-image .field-content{
+	overflow:hidden;
+}
+
+.region--debug {
+	background: #fff;
+	outline: 0px;
+}
+
+.pager-current {
+	display:none;
+}

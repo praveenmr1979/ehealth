@@ -1,0 +1,17 @@
+name = VideoWhisper Rooms
+description = VideoWhisper Room Listings. Required by VideoWhisper application integration modules. Please install <a href="http://drupal.org/project/date" target="_blank">Date API and Date Popup</a> from http://drupal.org/project/date before installing this module.
+core = 7.x
+package = VIDEOWHISPER
+dependencies[] = date_api
+dependencies[] = date_popup
+dependencies[] = taxonomy
+configure = admin/config/videowhisper/vwrooms
+version="7.x-1.02"
+
+
+; Information added by Drupal.org packaging script on 2014-11-15
+version = "7.x-1.5"
+core = "7.x"
+project = "videowhisper"
+datestamp = "1416072782"
+

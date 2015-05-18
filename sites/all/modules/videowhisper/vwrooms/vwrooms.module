@@ -1,0 +1,2442 @@
+<?php
+function vwrooms_unlock_tables(){
+
+	db_query("unlock tables");
+}
+function vwrooms_broadoptions(&$node) {
+
+  if (module_exists('vwcredits')) {
+    vwcredits_before($node);
+  }
+
+
+}
+
+function vwrooms_init() {
+error_reporting(0);
+
+}
+
+function vwrooms_form_alter(&$form, &$form_state, $form_id) {
+  global $base_url;
+
+  $form['buttons']['preview']['#access'] = FALSE;
+  unset($form['buttons']['preview']);
+  if ($form_id != 'vls_node_form' && $form_id != 'vconsult_node_form' && $form_id != 'v2wvc_node_form' && $form_id != 'vconf_node_form') {
+    return;
+  }
+  $form['fre']['#tree'] = $form['paid']['#tree'] = false;
+
+
+  $form['#after_build'][] = 'vwrooms_afterbuild';
+
+  unset($form['buttons']['preview']);
+  $node = $form['#node'];
+drupal_add_js(' jQuery(document).ready(function(){
+$=jQuery.noConflict();
+$("#edit-preview").hide();
+
+})',array('type'=>'inline'));
+
+  $form['room_image'] = array('#type' => 'fieldset');
+  if (user_access('vwrooms upload file')) {
+    ///$form['files']=array('#tree'=>true,'#type'=>'markup');
+    $t = t('Room Image');
+
+    //	  if(!strstr($node->vwimage,'vwrooms/uploads/snap_'))
+    ///	$href=	  file_create_url($node->vwimage);
+    ///	  else
+    $href = "";
+if($node->vwimage){
+    $href =  $node->vwimage;
+      $form['room_image']['imgpw'] = array('#markup' => '<img  src="' . $href . '" title="' . $t . '" alt="' . $t . '"/>');
+
+    }
+
+
+    $z = variable_get('vwrooms_maxresolution', '320x240');
+    if (!$z) {
+      $z = t('Should be jpg image');
+    }
+    else {
+      $z =	 	variable_get('vwrooms_maxresolution', '320x240');
+      $z =	t('Should be jpg image  will be resized to @z ', array('@z' => $z));
+    }
+    $form['room_image']['vwimage'] = array('#type' => 'file', '#title' => t('Image file'), '#description' => $z);
+    if ($node->vwimage) {
+      //	$form['room_image']['removeimage']=array('#type'=>'checkbox','#title'=>t('Remove image'));
+    }
+
+    $form['#attributes']['enctype'] = 'multipart/form-data';
+    $form['#submit'][] = 'vwrooms_node_form_submit';
+  }
+
+
+  if ($node->room) {
+
+    $imgs = array();
+    $sitepath = variable_get($form['#node']->type . "_path", "") . 'snapshots' . "/" . $node->room;
+    $p =  realpath("." . $sitepath);
+
+    $form['room_image']['vw_snap'] = array('#type' => 'select', '#options' => array('1' => t('Room Picture'), '0' => t('Live Snapshot')), '#title' => t('Room List Image'), '#default_value' => $node->vwimage ? 1 : 0);
+
+
+    $f = opendir($p);
+    $c = 0;
+    if (!$f) {
+      //	drupal_set_message(t('cannot open snapshot directory'),null);
+    }
+    $times = array();
+    $maxn = variable_get('vwrooms_maxsnap', 50);
+    if ($f) {
+      while ((false !== ($r = readdir($f))) && $c < 100) {
+        if ($r == '.' || $r == '..') {
+          continue;
+        }
+        $is = explode(".", $r);
+        $nm = array_shift($is);
+
+        if (preg_match('/^\d+$/', $nm)) {
+
+          $im = new stdClass();
+          $im->url = $base_url . $sitepath . "/" . $r;
+          $im->title = date("Y-m-d H:i:s", $nm);
+          $im->i = $c;
+          $im->n = $r;
+          $times[$c] = $nm;
+          $imgs[$c++] = $im;
+
+
+        }
+
+      }
+
+    }
+    ///opendir
+
+
+
+
+
+
+    $sitepath = variable_get($form['#node']->type . "_path", "") . 'uploads' . "/" . $node->room;
+    $p =  realpath("." . $sitepath);
+
+    $f = opendir($p);
+    $c = 0;
+    if (!$f) {
+      //	drupal_set_message(t('cannot open snapshot directory'),null);
+    }
+    ////	$times=array();
+    $maxn = variable_get('vwrooms_maxsnap', 50);
+    if ($f) {
+      while ((false !== ($r = readdir($f))) && $c < 100) {
+        if ($r == '.' || $r == '..') {
+          continue;
+        }
+        $is = explode(".", $r);
+        $nm = array_shift($is);
+        $ext = array_pop($is);
+
+
+        if (preg_match('/^jpg$/', $ext)) {
+
+          $im = new stdClass();
+          $im->url = $base_url . $sitepath . "/" . $r;
+          $im->title = $nm;
+          $im->i = $c;
+          $im->n = $r;
+          $times[$c] = filemtime($p . '/' . $r);
+          $imgs[$c++] = $im;
+
+
+        }
+
+      }
+      $maxn = $maxn * 2;
+
+    }
+    ///opendir
+
+
+    if (count($imgs)) {
+      if ($maxn < count($imgs)) {
+        array_multisort($times, SORT_DESC, SORT_NUMERIC, $imgs);
+      }
+      $imgs =	array_slice($imgs, 0, $maxn);
+
+
+      drupal_add_js(  drupal_get_path('module', 'vwrooms') . '/js/jquery.jcarousel.min.js');
+      drupal_add_css(drupal_get_path('module', 'vwrooms') . '/js/skins/ie7/skin.css');
+
+      drupal_add_js('
+$=jQuery.noConflict();
+
+	var vwrooms_items=' . drupal_json_encode($imgs) . ';
+
+
+
+	function vwrooms_itemLoad(carousel,state){
+for (var i = carousel.first; i <= carousel.last; i++) {
+
+    if (carousel.has(i)) {
+            continue;
+        }
+
+        if (i > vwrooms_items.length) {
+            break;
+        }
+
+        carousel.add(i, vwrooms_getItem(vwrooms_items[i-1],i-1));
+    }
+
+}
+
+
+	function vwrooms_snpclick(id){
+	$=jQuery.noConflict();
+
+//	id="#vwrooms-snpimg-"+id;
+	$("#vwrooms-uploaded-img").attr("src",vwrooms_items[id].url);
+///	$("#vwrooms-hidden-img").attr("src",vwrooms_items[id].url);
+$("#vwrooms-hid-snapshot").val(vwrooms_items[id].n);
+	return false;
+
+	}
+
+	function vwrooms_getItem(item,ind){
+
+    return \'<a href="#" onclick="return vwrooms_snpclick(\'+ind+\')"><img id="vwrooms-snpimg-\' + item.i + \'" src="\' + item.url + \'" width="75" height="75" alt="\' + item.url + \'" /></a>\';
+}
+
+
+	$(function() {
+    $("#vwrooms-snp").jcarousel({
+        size: vwrooms_items.length,
+        itemLoadCallback: {onBeforeAnimation: vwrooms_itemLoad}
+    });
+});
+
+
+	', array('type' => 'inline'));
+      $src = "";
+      $form['room_image']['snapshot'] = array('#type' => 'hidden', '#id' => 'vwrooms-hid-snapshot', '#default_value' => '','#attributes'=>array('id'=>'vwrooms-hid-snapshot'));
+      if ($node->snapshot) {
+        ///$t=$node->snapshot;
+        $src = $base_url . '/' . $node->snapshot;
+      }
+      $form['room_image']['bimgpw'] = array('#markup' => '<strong><u>' . t('Room Image') . '</u></strong>' . '<br/>(' . t('Click on the scroller below to select one.If not provided the uploaded image will be used.') . ')<br/>' . '<img id="vwrooms-uploaded-img" src="' . $src . '"  title="' . $t . '" alt="' . $t . '"/>',);
+
+      $form['room_image']['mk'] = array( '#markup' => '<ul id="vwrooms-snp" class="jcarousel-skin-ie7"></ul>');
+    }
+    //countimgs
+
+  }
+
+  $tags = array();
+  foreach ($node->field_tags['und'] as $item) {
+  	$tags[$item['tid']] = isset($item['taxonomy_term']) ? $item['taxonomy_term'] : taxonomy_term_load($item['tid']);
+  }
+  /*
+  $form['tags'] = array(
+        '#type' => 'textfield',
+        '#default_value' => taxonomy_implode_tags($tags),
+        '#title' => 'Add Tags',
+        '#autocomplete_path' => 'taxonomy/autocomplete/field_tags',
+        '#maxlength' => 1024,
+        '#element_validate' => array('taxonomy_autocomplete_validate')
+  );
+*/
+
+  $form['#after_build'][] = 'vwrooms_removefile';
+  unset($form['revision_information']);
+  $form['revision'] = array('#type' => 'hidden', '#value' => 0);
+
+
+}
+
+function vwrooms_afterbuild($form, &$form_state) {
+  $form['#validate'][] = 'vwrooms_validate';
+  return $form;
+}
+
+
+function vwrooms_validate($form, &$form_state) {
+  ///	form_set_error('','error '.variable_get('vwrooms_saved','0'));
+  if (!variable_get('vwrooms_saved', '0')) {
+    form_set_error('', t('vwrooms configuration  not saved. please contact admin.'));
+  }
+  if (module_exists('vwcredits')) {
+
+    if (!variable_get('vwcredits_saved', '0')) {
+      ///	form_set_error('',t('vwcredits configuration file not saved. please contact admin.'));
+    }
+
+  }
+
+
+}
+
+function vwrooms_removefile($form, &$form_state) {
+  unset($form['attachments']);
+
+  $r = array_search('upload_node_form_submit', (array) $form['#submit']);
+  if ($r !== false) {
+    ///unset($form['#submit'][$r]);
+  }
+
+  return $form;
+
+
+}
+
+
+
+function vwrooms_menu() {
+  $items = array();
+
+  $items['vwrooms/image/%/%'] = array('page callback' => 'vwrooms_select_snap', 'access arguments' => array('access content'), 'page arguments' => array(2, 3));
+
+  $items['admin/config/videowhipser'] = array(
+      'title' => 'Videowhisper',
+      'description' => 'Videowhisper modules.',
+      'position' => 'left',
+      'weight' => -100,
+      'page callback' => 'system_admin_menu_block_page',
+      'access arguments' => array('access administration pages'),
+      'file' => 'system.admin.inc',
+  	'file path' => drupal_get_path('module', 'system'),
+
+  );
+
+  $items['admin/config/videowhisper/vwrooms'] = array(
+'title' => t('VideoWhisper Rooms'),
+'page callback' => 'drupal_get_form',
+'page arguments' => array('vwrooms_admin'),
+'access arguments' => array('administer vwrooms'),
+);
+
+  $items['vwrooms/deletefiles/%/%'] = array(
+'page callback' => 'vwrooms_filedelete',
+'page arguments' => array(2, 3),
+'access arguments' => array('access content'),
+'type' => MENU_CALLBACK
+
+);
+
+  $items['vwrooms/logout'] = array(
+'page callback' => 'vwrooms_logout',
+'type' => MENU_CALLBACK,
+'access arguments' => array('access content'),
+
+);
+
+  $items['vwrooms/list'] = array(
+'title' => t('VideoWhisper Rooms List'),
+'page callback' => 'vwrooms_list',
+'title' => t('Room List'),
+'access arguments' => array('access content'),
+);
+
+  return $items;
+}
+
+
+
+function vwrooms_logout() {
+	// fixed xss
+	$allowed_tags = array('a', 'em', 'strong', 'cite', 'blockquote', 'code', 'ul', 'ol', 'li', 'dl', 'dt', 'dd');
+	return theme('vwrooms_logout', array('module' => filter_xss($_GET['module']), 'message' => filter_xss($_GET['message'], $allowed_tags)));
+
+}
+
+
+
+function vwrooms_permission() {
+
+  return array(
+    'administer vwrooms' => array(
+      'title' => t('administer vwrooms'),
+      'description' => t('Room Admin'),
+    ),
+    'vwrooms upload file' => array(
+      'title' => t('vwrooms upload file'),
+      'description' => t('Can Upload File'),
+    ),
+    'vwrooms own name' => array(
+      'title' => t('vwrooms own name'),
+      'description' => t('Have own username'),
+    ),
+  );
+}
+
+
+function vwrooms_admin($form, &$form_state) {
+  $form = array();
+
+  $form['vwrooms_in'] = array('#title' => t('Swf Inside site template'), '#type' => 'radios', '#options' => array(t('No'), t('Yes')), '#default_value' => variable_get('vwrooms_in', 0));
+
+  $form['vwrooms_snaphours'] = array('#title' => t('Snapshot delete interval'), '#default_value' => variable_get('vwrooms_snaphours', 0), '#type' => 'textfield', '#description' => t('snapshots    are deleted after x days.put 0 to disable this. or 0.5,1 etc'));
+  $form['vwrooms_snapcount'] = array('#title' => t('No of snapshots preserved'), '#default_value' => variable_get('vwrooms_snapcount', 0), '#type' => 'textfield', '#description' => t('max number of snapshots to keep 0 to disable'));
+  $form['vwrooms_loghours'] = array('#title' => t('File delete interval'), '#default_value' => variable_get('vwrooms_loghours', 1), '#type' => 'textfield', '#description' => t('logs and files   are deleted after x days.put 0 to disable this or 0,0.5,1 etc'));
+
+  $form['vwrooms_maxsnap'] = array('#title' => t('Number of snapshots displayed'), '#default_value' => variable_get('vwrooms_maxsnap', 5), '#type' => 'textfield', '#description' => t('Maximum number of snapshots displayed in room edit/create form for selecting the room image. 0 to display all. try to use  non-zero value'));
+
+  $form['tag']=array('#type'=>'fieldset','#title'=>'Tag Config');
+  $form['tag']['vwrooms_tag'] = array('#title' => t('Search Tag Vocabulary'), '#type' => 'textfield', '#default_value' => variable_get('vwrooms_tag', 'Room Tag')
+, '#description' => t('This vocabulary name
+  should be unique ie not shared by any other vocabularies.If you  change  this value or  including the machine name of the vocabulary from the default value installed you also have to create taxonomy fields
+  for each videowhisper module. for more help: !u', array('!u' => l(t('More help '), 'admin/help/taxonomy'))));
+
+  $form['tag']['vwrooms_tagfield'] = array('#title' => t('Tag Field'), '#type' => 'textfield', '#default_value' => variable_get('vwrooms_tagfield', 'vwroomstags')
+  , '#description' => t('Field for search tag, change only if you are an expert. for more help: !u', array('!u' => l(t('More help '), 'admin/help/taxonomy'))));
+
+
+  $form['vwrooms_idletime'] = array('#title' => t('Idle time'), '#default_value' => variable_get('vwrooms_idletime', 2), '#type' => 'textfield', '#description' => t('User idle time in minute. users with no activity report for more than this time marked as logged out.'));
+
+  $form['vwrooms_maxthumbsize'] = array('#title' => t('Max File size to upload'), '#default_value' => variable_get('vwrooms_maxthumbsize', 0), '#type' => 'textfield');
+  $form['vwrooms_maxresolution'] = array('#title' => t('Max Image Dimension wxh format'), '#default_value' => variable_get('vwrooms_maxresolution', '320x240'), '#type' => 'textfield');
+  //$form['vwrooms_minresolution']=array('#title'=>t('Min Image Dimension wxh format'),'#default_value'=>variable_get('vwrooms_minresolution','100x100'),'#type'=>'textfield');
+
+  $options = array('r' => t('Room Type'), 't' => t('Thumb'), 'd' => t('Description'), 'u' => t('Users Online'), 'o' => t('Owner'), 'n' => t('Owner Online'), 'a' => t('Access'), 'g' => t('Tags'));
+
+  if (module_exists('vwcredits')) {
+    $options['c'] = t('Cost');
+  }
+  $def = array('r' => 'r', 't' => 't', 'd' => 'd', 'u' => 'u', 'o' => 'o', 'n' => 'n', 'a' => 'a', 'g' => 'g', 'c' => 'c' );
+
+  $form['vwrooms_showlistcol'] = array('#type' => 'select', '#options' => $options, '#default_value' => variable_get('vwrooms_showlistcol', $def), '#title' => t('Columns'), '#description' => t('Optional Columns for listing. some columns in 2nd row are dependent on first row, please see the default template vwrooms_mainlist for tweaking the default implementation '), '#multiple' => true);
+
+
+  $form['d'] = array('#type' => 'fieldset', '#title' => t('Room List Defaults'), '#collapsible' => true, '#collapsed' => true, '#description' => t('These values also apply to block.'));
+
+
+  $shot = array('t' => 't', 'u' => 'u', 'o' => 'o', 'a' => 'a', 'd' => 'd' );
+
+  $form['d']['vwrooms_showt'] = array('#type' => 'select', '#options' => array('t' => t('Room Type'), 'u' => t('Users Online'), 'o' => t('Owner Online'), 'a' => t('Access'), 'd' => t('Tags')), '#default_value' => variable_get('vwrooms_showt', $shot), '#title' => t('Show Filters'), '#multiple' => true);
+
+  $form['d']['vwrooms_filtcol_u'] = array('#title' => t('Users Online'), '#type' => 'select', '#options' => array(0 => t('All'), 1 => t('No'), 2 => t('Yes')), '#default_value' => variable_get('vwrooms_filtcol_u', 0));
+  $form['d']['vwrooms_filtcol_o'] = array('#title' => t('Owner Online'), '#type' => 'select', '#options' => array(0 => t('All'), 1 => t('No'), 2 => t('Yes')), '#default_value' => variable_get('vwrooms_filtcol_o', 0));
+  $form['d']['vwrooms_filtcol_a'] = array('#title' => t('Access'), '#type' => 'select', '#options' => array(0 => t('All'), 'P' => t('Private'), 'F' => t('Public')), '#default_value' => variable_get('vwrooms_filtcol_a', 0));
+  ///$form['d']['vwrooms_filtcol_f']=array('#title'=>t('Room Cost'),'#type'=>'select','#options'=>array(0=>t('All'),1=>t('No'),2=>t('Yes')),'#default_value'=>variable_get('vwrooms_filtcol_o',0));
+  global $base_url;
+  $form['vwrooms_saved'] = array('#type' => 'hidden', '#value' => $base_url, '#default_value' => $base_url);
+
+
+
+  return system_settings_form($form);
+
+}
+
+
+function vwrooms_adminxx() {
+  $form = array();
+
+  $form['vwrooms_in'] = array('#title' => t('Swf Inside site template'), '#type' => 'radios', '#options' => array(t('No'), t('Yes')), '#default_value' => variable_get('vwrooms_in', 0));
+
+  $form['vwrooms_snaphours'] = array('#title' => t('Snapshot delete interval'), '#default_value' => variable_get('vwrooms_snaphours', 0), '#type' => 'textfield', '#description' => t('snapshots    are deleted after x days.put 0 to disable this. or 0.5,1 etc'));
+  $form['vwrooms_snapcount'] = array('#title' => t('No of snapshots preserved'), '#default_value' => variable_get('vwrooms_snapcount', 0), '#type' => 'textfield', '#description' => t('max number of snapshots to keep 0 to disable'));
+  $form['vwrooms_loghours'] = array('#title' => t('File delete interval'), '#default_value' => variable_get('vwrooms_loghours', 1), '#type' => 'textfield', '#description' => t('logs and files   are deleted after x days.put 0 to disable this or 0,0.5,1 etc'));
+
+  $form['vwrooms_maxsnap'] = array('#title' => t('Number of snapshots displayed'), '#default_value' => variable_get('vwrooms_maxsnap', 5), '#type' => 'textfield', '#description' => t('Maximum number of snapshots displayed in room edit/create form for selecting the room image. 0 to display all. try to use  non-zero value'));
+
+  $form['vwrooms_tag'] = array('#title' => t('Search Tag Vocabulary'), '#type' => 'textfield', '#default_value' => variable_get('vwrooms_tag', 'Room Tag')
+
+	, '#description' => t('Terms in this vocabulary can be used for filtering rooms in room list. This vocabulary should be enabled for all node types of v2wvc,vconf,vconsult,vls when installed and have Tags (in vocabulary form under Settings)  checked so that Terms are created by users when submitting posts by typing a comma separated list.Also this vocabulary name should be unique ie not shared by any other vocabularies. !u', array('!u' => l(t('More help '), 'admin/help/taxonomy'))));
+
+  $form['vwrooms_idletime'] = array('#title' => t('Idle time'), '#default_value' => variable_get('vwrooms_idletime', 2), '#type' => 'textfield', '#description' => t('User idle time in minute. users with no activity report for more than this time marked as logged out.'));
+
+  $form['vwrooms_maxthumbsize'] = array('#title' => t('Max File size to upload'), '#default_value' => variable_get('vwrooms_maxthumbsize', 0), '#type' => 'textfield');
+  $form['vwrooms_maxresolution'] = array('#title' => t('Max Image Dimension wxh format'), '#default_value' => variable_get('vwrooms_maxresolution', '320x240'), '#type' => 'textfield');
+  //$form['vwrooms_minresolution']=array('#title'=>t('Min Image Dimension wxh format'),'#default_value'=>variable_get('vwrooms_minresolution','100x100'),'#type'=>'textfield');
+
+  global $base_url;
+  $form[vwrooms_saved] = array('#type' => 'hidden', '#value' => $base_url);
+
+
+  $def = array('r' => 'r', 't' => 't', 'd' => 'd', 'u' => 'u', 'o' => 'o', 'n' => n, 'a' => 'a', 'g' => 'g', 'c' => 'c' );
+
+  $options = array('r' => t('Room Type'), 't' => t('Thumb'), 'd' => t('Description'), 'u' => t('Users Online'), 'o' => t('Owner'), 'n' => t('Owner Online'), 'a' => t('Access'), 'g' => t('Tags'));
+
+  if (module_exists('vwcredits')) {
+    $options['c'] = t('Cost');
+  }
+
+  $form['vwrooms_showlistcol'] = array('#type' => 'select', '#options' => $options, '#default_value' => $def, '#title' => t('Columns'), '#description' => t('Optional Columns for listing. some columns in 2nd row are dependent on first row, please see the default template vwrooms_mainlist for tweaking the default implementation '), '#multiple' => true);
+
+  $shot = array('t' => 't', 'u' => 'u', 'o' => 'o', 'a' => 'a', 'd' => 'd' );
+  $form['vwrooms_showt'] = array('#type' => 'select', '#options' => array('t' => t('Room Type'), 'u' => t('Users Online'), 'o' => t('Owner Online'), 'a' => t('Access'), 'd' => t('Tags')), '#default_value' => $shot, '#title' => t('Show Filters'), '#multiple' => true);
+
+  $form['vwrooms_filtcol_u'] = array('#title' => t('Users Online'), '#type' => 'select', '#options' => array(0 => t('All'), 1 => t('No'), 2 => t('Yes')), '#default_value' => 0);
+  $form['vwrooms_filtcol_o'] = array('#title' => t('Owner Online'), '#type' => 'select', '#options' => array(0 => t('All'), 1 => t('No'), 2 => t('Yes')), '#default_value' => 0);
+  $form['vwrooms_filtcol_a'] = array('#title' => t('Access'), '#type' => 'select', '#options' => array(0 => t('All'), 'P' => t('Private'), 'F' => t('Public')), '#default_value' => 0);
+  ///$form['d']['vwrooms_filtcol_f']=array('#title'=>t('Room Cost'),'#type'=>'select','#options'=>array(0=>t('All'),1=>t('No'),2=>t('Yes')),'#default_value'=>variable_get('vwrooms_filtcol_o',0));
+
+  foreach ($form as $nm => $vl) {
+    variable_set($nm, $v['#default_value']);
+
+  }
+
+  $f = db_query("select vid from {taxonomy_vocabulary} where name like 'Room Tag'")->fetchField();
+
+  if (!$f) {
+    db_query("
+INSERT INTO {taxonomy_vocabulary} (`vid`, `name`, `description`, `help`, `relations`, `hierarchy`, `multiple`, `required`, `tags`, `module`, `weight`) VALUES
+(1, 'Room Tag', 'm', '', 1, 0, 0, 0, 1, 'taxonomy', 0);
+");
+  }
+
+
+}
+
+
+function vwrooms_node_form_submit(&$form, &$form_state) {
+
+
+
+  global $user;
+  if ($form_state['values']['removeimage']) {
+    ///$form_state['values']['snapshot']='';
+//  $form['#node']->removeimage=true;
+    return;
+  }
+  else if (!$form_state['values']['vw_snap']) {
+    return;
+
+  }
+  $limits = array(
+   'extensions' => 'jpg png',
+    'file_size' => variable_get('vwrooms_maxthumbsize', ''),
+    'maxresolution' => variable_get('vwrooms_maxresolution', '320x240'),
+    'minresolution' => variable_get('vwrooms_minresolution', 0),
+
+  );
+  $validators = array(
+    'file_validate_extensions' => array($limits['extensions']),
+    'file_validate_image_resolution' => array($limits['maxresolution'], $limits['minresolution']),
+    'file_validate_size' => array($limits['file_size']),
+  );
+
+   // Save new file uploads.
+  if (user_access('vwrooms upload file') && ($file = file_save_upload('vwimage', $validators,"public://",true))) {
+    $file->list = 0;
+    $file->description = $file->filename;
+    $file->weight = 0;
+    $file->new = TRUE;
+
+   /// $dest=file_unmanaged_copy($file->uri,'sites/default/files/');
+///    $file->uri=$dest;
+    $file=file_save($file);
+    ///    $form_state['values']['removeimage']=true;
+    //	$form['#node']->removeimage=true;
+    $form['#node']->files[$file->fid] = $file;
+    $form_state['values']['files'][$file->fid] = (array) $file;
+///  var_dump($file);
+  ///exit;
+  }
+  else {
+    ///if (isset($_FILES['files']) && $_FILES['files']['name']['vwimage'])
+//  drupal_set_message(t("Cannot save file"),'error');
+  }
+  /*
+   foreach($form['#node']->files as $fid=>$file){
+   file_delete($file->filepath);
+
+   }
+   unset($form['#node']->files);
+   $form['#node']['files']=array();
+   */
+  if (isset($form_state['values']['files'])) {
+    foreach ($form_state['values']['files'] as $fid => $file) {
+      $form['#node']->files[$fid] = (object) $form['#node']->files[$fid];
+      $form_state['values']['files'][$fid]['new'] = !empty($form['#node']->files[$fid]->new);
+    }
+  }
+
+}
+
+
+
+
+function vwrooms_block_info() {
+  $blocks['delta-0'] = array('info' => t('Room Listing'));
+  return $blocks;
+}
+
+
+function vwrooms_block_configure($delta) {
+  // TODO Rename block deltas (e.g. delta-0) to readable strings.
+  if ($delta == 'delta-0') {
+    $options = array('r' => t('Room Type'), 'u' => t('Users Online'), 'o' => t('Owner'), 'n' => t('Owner Online'), 'a' => t('Access'));
+
+    if (module_exists('vwcredits')) {
+      $options['c'] = t('Cost');
+    }
+
+    $form['vwrooms_showblockcol'] = array('#type' => 'select', '#options' => $options, '#default_value' => variable_get('vwrooms_showblockcol', array()), '#title' => t('Columns'), '#description' => t('Optional Columns for block'), '#multiple' => true);
+    $form['vwrooms_showblockc'] = array('#type' => 'textfield', '#title' => t('No. of rows in block'), '#default_value' => variable_get('vwrooms_showblockc', 5));
+    $form['vwrooms_showblockh'] = array('#type' => 'radios', '#title' => t('Show extra info '), '#default_value' => variable_get('vwrooms_showblockh', 0), '#options' => array(t('No'), t('Yes')), '#description' => t('Extra information in popup. for example  livestreamroom(12) when you place cursor under 12 the information about owner,access,cost etc pops'));
+
+    return $form;
+
+  }
+}
+
+function vwrooms_block_save($delta, $edit) {
+  // TODO Rename block deltas (e.g. delta-0) to readable strings.
+  if ($delta == 'delta-0') {
+    variable_set('vwrooms_showblockcol', $edit['vwrooms_showblockcol']);
+    variable_set('vwrooms_showblockc', $edit['vwrooms_showblockc']);
+    variable_set('vwrooms_showblockh', $edit['vwrooms_showblockh']);
+
+  }
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function vwrooms_block_view($delta) {
+  // TODO Rename block deltas (e.g. delta-0) to readable strings.
+  if ($delta == 'delta-0') {
+    $block = array('subject' => t('Room List'), 'content' => vwrooms_blocklist());
+
+  }
+  return $block;
+}
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwrooms_block_OLD($op = 'list', $delta = 0, $edit = array()) {
+  // TODO Remaining code in this function needs to be moved to the appropriate new hook function.
+  //op
+}
+
+
+function vwrooms_select_snap($type, $room) {
+  header('Content-type: image/jpeg');
+  $sitepath = variable_get($type . "_path", "") . 'snapshots' . "/" . $room . "/";
+
+  $sitepath = realpath('.' . $sitepath);
+  if (!is_dir($sitepath)) {
+    $sitepath = variable_get($type . "_path", "") . 'uploads' . "/" . $room . "/";
+    $sitepath = realpath('.' . $sitepath);
+
+  }
+
+  $files = array();
+  $times = array();
+  $r = opendir($sitepath);
+  if (!$r) {
+    $im =	imagecreate(160, 120);
+
+    imagejpeg($im);
+    exit;
+  }
+
+  while ($f = readdir($r)) {
+    $p = explode('.', $f);
+    $ext = array_pop($p);
+    if ($ext != 'jpg') {
+      continue;
+    }
+    $t =		filemtime($sitepath . '/' . $f);
+
+
+    $files[] = $sitepath . '/' . $f;
+    $times[] = $t;
+
+
+  }
+  array_multisort($files, $times);
+  if (count($files)) {
+    ///header("Content-type: image/jpeg");
+    $handle = fopen($files[0], 'r');
+    fpassthru($handle);
+  }
+  else {
+    $im =	imagecreate(160, 120);
+
+    imagejpeg($im);
+  }
+  exit;
+}
+
+/**
+ * Implements hook_node_load().
+ */
+
+function vwrooms_node_load($nodes, $types) {
+	global $base_url;
+foreach($nodes as $node){
+	$typesx = array('vls', 'vconsult', 'v2wvc', 'vconf');
+
+	if (!in_array($node->type, $typesx)) {
+		continue;
+	}
+	$type = $node->type;
+
+  $output = array();
+  $f = vwrooms_upload_load($node);
+  if ($f['snapshot']) {
+
+    $output['snapshot'] = substr($f['snapshot'], 1);
+    $output['snapimg'] = true;
+    $output['thumb'] = $f['thumb'];
+    $output['vwimage'] = $f['thumb'];
+    $output['removeimage'] = false;
+  }
+
+
+  else if ($f['uri']) {
+///    $output['files'] = array($f)
+
+    $output['vwimage'] = file_create_url($f['uri']);
+  }
+  else {
+
+
+
+  }
+
+  foreach($output as $k=>$v){
+
+$nodes[$node->nid]->$k=$v;
+  }
+
+}
+//  return $output;
+}
+
+
+function vwrooms_body($node){
+	$language = $node->language;
+	if(!$language)
+	$language='und';
+	return check_markup($node->body[$language][0]['value'], $node->body[$language][0]['format'], $language);
+}
+
+/**
+ * Implements hook_node_view().
+ */
+function vwrooms_node_view($node, $view_mode = 'full') {
+	global $base_url,$user;
+	$types = array('vls', 'vconsult', 'v2wvc', 'vconf');
+	if (!in_array($node->type, $types)) {
+		return;
+	}
+	$type = $node->type;
+
+	if($node->uid==$user->uid){
+
+
+		$node->content['roomfilesdelete'] =array('#markup'=>
+		'<br />'.l(t('Delete Room Files'),'vwrooms/deletefiles/' . $node->type . '/' . $node->nid),'#weight'=>100000);
+///...		array('title' => t('Delete Room Files'), 'href' => 'vwrooms/deletefiles/' . $obj->type . '/' . $obj->nid, 'attributes' => array('title' => t('Delete all files except room thumb/image')));
+
+
+
+	}
+
+  if ($node->snapshot) {
+
+    $href = $base_url . '/' . $node->snapshot;
+    $node->content['room_image'] = array(
+    	    		    	              '#markup' => '<img src="' . $href . '" alt="' . check_plain($node->room) . '" title="' . check_plain($node->room) . '"/>',
+    	    		    	              '#weight' => -50,);
+
+
+  }
+  else if (count((array) $node->files)) {
+
+
+
+
+    // Add the attachments list to node body with a heavy
+    // weight to ensure they're below other elements
+    if (count($node->files)) {
+
+      foreach ($node->files as $file) {
+        if (is_object($file)) {
+          $fp = $file->filepath;
+        }
+        else if (is_array($file)) {
+          $fp = $file['filepath'];
+        }
+
+        $href = file_create_url($fp);
+
+
+
+
+        $node->content['room_image'] = array(
+              '#markup' => '<img src="' . $href . '" alt="' . check_plain($node->room) . '" title="' . check_plain($node->room) . '"/>',
+              '#weight' => -50,
+            );
+        break;
+      }
+
+    }
+  }
+  else if ($node->vwimage) {
+    $href =  $node->vwimage;
+    $node->content['room_image'] = array(
+    	              '#markup' => '<img src="' . $href . '" alt="' . check_plain($node->room) . '" title="' . check_plain($node->room) . '"/>',
+    	              '#weight' => -50,
+    		);
+
+  }
+  else {
+    $href = url('vwrooms/image/' . $node->type . '/' . $node->room, array('absolute' => true));
+    $node->content['room_image'] = array(
+    		    	              '#markup' => '<img src="' . $href . '" alt="' . check_plain($node->room) . '" title="' . check_plain($node->room) . '"/>',
+    		    	              '#weight' => -50,);
+
+
+  }
+
+
+}
+
+/**
+ * Implements hook_node_validate().
+ */
+function vwrooms_node_validate($node, $form) {
+	global $base_url;
+	$types = array('vls', 'vconsult', 'v2wvc', 'vconf');
+	if (!in_array($node->type, $types)) {
+		return;
+	}
+	$type = $node->type;
+
+  $room = $edit['room']['#value'];
+
+  if (preg_match('/[^a-z0-9_\\-]/i', $room)) {
+
+    form_set_error("room", t('valid characters allowed in room/channel name are a-z,A-Z ,0-9, _, - '));
+
+    return false;
+  }
+
+  foreach ($types as $type) {
+    if (module_exists($type)) {
+      // TODO Please convert this statement to the D7 database API syntax.
+      $fs = db_query("select nid from {{$type}_rooms} where room=?", array($room))->fetchField();
+      if ($fs && $fs != $node->nid) {
+
+        form_set_error('room', t('Room @r already exist. enter a new room name', array('@r' => $room)));
+        return;
+      }
+    }
+    //if
+  }
+
+
+
+
+}
+
+/**
+ * Implements hook_node_presave().
+ */
+function vwrooms_node_presave($node) {
+	global $base_url;
+	$types = array('vls', 'vconsult', 'v2wvc', 'vconf');
+	if (!in_array($node->type, $types)) {
+		return;
+	}
+	$type = $node->type;
+
+  if ($node->room == variable_get("{$node->type}_room_prefix3", 'Instant')) {
+    $node->room = variable_get($node->type . '_room_prefix3', 'Instant') . "_" . base_convert((REQUEST_TIME - 1225500000) . rand(0, 10), 10, 36);
+  }
+}
+
+/**
+ * Implements hook_node_insert().
+ */
+function vwrooms_node_insert($node) {
+vwrooms_node_update($node);
+
+}
+
+
+/**
+ * Implements hook_node_update().
+ */
+function vwrooms_node_update($node) {
+	global $base_url;
+	$types = array('vls', 'vconsult', 'v2wvc', 'vconf');
+	if (!in_array($node->type, $types)) {
+		return;
+	}
+	$type = $node->type;
+
+  if (user_access('vwrooms upload file')) {
+    vwrooms_upload_save($node);
+  }
+
+
+  db_query("delete from {vwrooms_users} where room_nid=$node->nid");
+
+
+}
+
+/**
+ * Implements hook_node_delete().
+ */
+function vwrooms_node_delete($node) {
+	global $base_url;
+	$types = array('vls', 'vconsult', 'v2wvc', 'vconf');
+	if (!in_array($node->type, $types)) {
+		return;
+	}
+	$type = $node->type;
+
+  vwrooms_upload_delete($node);
+  vwrooms_removeroom($node->room, $node->type);
+  db_query("delete from {vwrooms_users} where room_nid=$node->nid");
+}
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwrooms_nodeapi_OLD(&$node, $op, $edit) {
+  // TODO Remaining code in this function needs to be moved to the appropriate new hook function.
+  global $base_url;
+  $types = array('vls', 'vconsult', 'v2wvc', 'vconf');
+  if (!in_array($node->type, $types)) {
+    return;
+  }
+  $type = $node->type;
+}
+
+
+
+function vwrooms_upload_save(&$node) {
+
+
+  global $user;
+
+
+
+
+
+
+  if ($node->snapshot) {
+    $sitepath = variable_get($node->type . "_path", "") . 'snapshots' . "/" . $node->room . "/";
+    $cpath =    drupal_get_path('module', 'vwrooms') . '/uploads' . "/";
+    $sitepath = substr($sitepath, 1);
+    //$cpath=substr($cpath,1);
+    $ext = array_pop(explode(".", $node->snapshot));
+    $tname = 'snap_' . uniqid();
+
+
+    $filecs = './' . $sitepath . $node->snapshot;
+    if (!file_exists($filecs)) {
+      drupal_set_message("$filecs not found", null);
+    }
+    $fileds = './' . $cpath . 'snap_' . uniqid() . ".$ext";
+
+    $cc =   copy($filecs, $fileds);
+    if (!$cc) {
+      drupal_set_message("$filecs cannot be copied ", null);
+
+    }
+    else {
+
+
+    	$q = db_query("select nid from {vwrooms_thumb} where nid=:d", array(':d'=>$node->nid));
+      $nid = $q->fetchField();
+      if ($nid) {
+        db_query("update {vwrooms_thumb} set snapshot=:s where nid=:d ", array(':s'=>$fileds, ':d'=>$node->nid));
+        drupal_set_message("$fileds set as room image", null);
+
+      }
+      else {
+        db_query("insert into  {vwrooms_thumb} set fid=0,snapshot=:s , nid=:d ", array(':s'=>$fileds, ':d'=>$node->nid));
+        drupal_set_message("$fileds set as new rooms image", null);
+      }
+
+
+    }
+  }
+
+  if (!$node->vw_snap) {
+    $fs = db_query("select * from {vwrooms_thumb} where nid=$node->nid")->fetchObject();
+
+
+
+
+    /*
+
+     if($fs->snapshot){
+     file_delete($fs->snapshot);
+     if($fs->thumb)
+     file_delete($fs->thumb);
+     return;
+     }
+     */
+    if ($fs->fid) {
+
+
+
+
+
+      $ff = db_query("select * from {file_managed} where fid=$fs->fid and uid= $user->uid")->fetchObject();
+      if ($ff->uri) {
+if($ff->uri){
+	$filex=file_load($ff->fid);
+
+	file_delete($filex,true);
+}
+      }
+      db_query("update {vwrooms_thumb} set fid=0 where nid=$node->nid ");
+      db_query("delete from {file_managed} where fid=$fs->fid and uid=$user->uid");
+
+    }
+    $ff = db_query("select * from {vwrooms_thumb} where nid=$node->nid ")->fetchObject();
+
+
+
+//    $ff = db_fetch_object($qn);
+
+
+    if ($ff->thumb) {
+     file_unmanaged_delete($ff->thumb);
+      db_query("update {vwrooms_thumb} set thumb='' where nid=$node->nid" );
+    }
+    unset($node->files);
+    unset($node->snapshot);
+    unset($node->thumb);
+    return;
+  }
+
+
+
+
+  if ($node->files) {
+    foreach ($node->files as $fid => $file) {
+      // Convert file to object for compatibility
+      $file = (object) $file;
+
+      // Remove file. Process removals first since no further processing
+      // will be required.
+      if (!$file->new || !$node->vw_snap) {
+
+		file_delete($file,true);
+		db_query("update {vwrooms_thumb} set fid=0 where fid=?",array($file->fid));
+
+        unset($node->files[$fid]);
+        continue;
+      }
+
+
+      else if ( $file->new && $node->vw_snap) {//livsnp
+        $type = $node->type;
+        $dst = drupal_get_path('module', 'vwrooms');
+
+$dir=        $dst =    drupal_get_path('module', 'vwrooms') . '/uploads' ;
+
+        $ext = array_pop(explode(".", $file->filename));
+
+        $dst =  "$dst/thumb_" . uniqid() . "." . $ext;
+        $uri= file_unmanaged_copy(drupal_realpath($file->uri),$dst);
+if(!$uri)
+drupal_set_message(t('cannot create thumbnail.check if @d is writable',array('@d'=>$dir)),'error');
+$img=image_load($uri);
+if($img)
+        $t = image_scale($img,  160, 120);
+        //	if(!$t) $dst='';
+
+        $f = db_query("select * from {vwrooms_thumb} where nid=$node->nid")->fetchObject();
+
+
+        if ($f->nid) {
+          if($f->fid){
+
+          	$fx=file_load($f->fid);
+           file_unmanaged_delete($fx->uri) ;
+          	db_delete('file_managed')->condition('fid', $fx->fid)->execute();
+
+          }
+
+          if ($f->snapshot) {
+            file_unmanaged_delete('./' . $f->snapshot);
+          }
+          if ($f->thumb) {
+            file_unmanaged_delete('./' . $f->thumb);
+          }
+          db_query("update {vwrooms_thumb} set fid=:d,thumb=:s where nid=:d2 ", array(':d'=>$file->fid,':s'=> $dst,':d2'=> $node->nid));
+
+        }
+        else {
+          // TODO Please review the conversion of this statement to the D7 database API syntax.
+          /* db_query("INSERT INTO {vwrooms_thumb} (fid, nid,thumb,snapshot) VALUES (%d, %d,'%s','')", $file->fid, $node->nid, $dst) */
+          $id = db_insert('vwrooms_thumb')
+  ->fields(array(
+            'fid' => $file->fid,
+            'nid' => $node->nid,
+            'thumb' => $dst,
+            'snapshot' => '',
+          ))
+  ->execute();
+        }
+        $file->status = FILE_STATUS_PERMANENT;
+        $file = file_save($file);
+      }
+
+    }
+  }
+}
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwrooms_link($type, $obj, $teaser = false) {
+  $links = array();
+  global $user;
+  if ($teaser) {
+    return $links;
+  }
+  global $base_url;
+  $types = array('vls', 'vconsult', 'v2wvc', 'vconf');
+  if (!in_array($obj->type, $types)) {
+  	return;
+  }
+  $type = $node->type;
+
+
+  if ($type == 'node') {
+    if ($user->uid == $obj->uid || user_access('administer vwrooms')) {
+
+      $links['roomfilesdelete'] = array('title' => t('Delete Room Files'), 'href' => 'vwrooms/deletefiles/' . $obj->type . '/' . $obj->nid, 'attributes' => array('title' => t('Delete all files except room thumb/image')));
+
+    }
+    //uid
+
+  }
+  //n
+
+
+  return $links;
+}
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwrooms_filedelete($type, $nid) {
+  global $user;
+  $types = array('vls', 'vconf', 'vconsult', 'v2wvc');
+  if (!in_array($type, $types)) {
+    return t('Invalid' . $type);
+  }
+
+  if (!user_access('administer vwrooms')) {
+    // TODO Please convert this statement to the D7 database API syntax.
+    $fr = db_query("select r.room,n.uid from {{$type}_rooms} r inner join {node} n on (n.nid=r.nid) and n.uid=$user->uid and n.nid=$nid")->fetchObject();
+  }
+  else {
+    // TODO Please convert this statement to the D7 database API syntax.
+    $fr = db_query("select r.room,n.uid from {{$type}_rooms} r inner join {node} n on (n.nid=r.nid) and n.nid=$nid")->fetchObject();
+  }
+  if (!$fr->room) {
+    return t('Invalid');
+  }
+  ///echo "deleting $fr->room , type $type<br/>";
+  vwrooms_removeroom($fr->room, $type);
+
+  ///$p=variable_get($type."_path",'');
+
+
+  return t('Deleted ');
+
+}
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwrooms_upload_load($node) {
+	$file = false;
+  if ($node->nid) {
+    $file = db_query('SELECT f.* ,r.snapshot,r.thumb FROM {file_managed} f INNER JOIN {vwrooms_thumb} r ON f.fid = r.fid WHERE r.nid = :rnid   limit 1', array(':rnid' => $node->nid))->fetchAssoc();
+   ///file = db_fetch_array($result);
+
+    if (!$file) {
+
+      $f = db_query("select * from {vwrooms_thumb} where nid=". $node->nid)->fetchAssoc();
+      if ($f['snapshot']) {
+        $file = array('snapshot' => $f['snapshot'], 'thumb' => $f['thumb']);
+      }
+
+    }else{
+
+
+    }
+
+  }
+
+  return $file;
+}
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwrooms_upload_delete($node) {
+  $files = array();
+  $result = db_query('SELECT DISTINCT f.*  FROM {vwrooms_thumb} u INNER JOIN {file_managed} f ON u.fid = f.fid WHERE u.nid = ?', array( $node->nid));
+  while ($file = $result->fetchObject()) {
+    $files[$file->fid] = $file;
+  }
+
+  foreach ($files as $fid => $file) {
+    // Delete all files associated with the node
+    // TODO Please review the conversion of this statement to the D7 database API syntax.
+    /* db_query('DELETE FROM {files} WHERE fid = %d', $fid) */
+    db_delete('file_managed')
+  ->condition('fid', $fid)
+  ->execute();
+
+    file_unmanaged_delete($file->uri);
+    // TODO Please review the conversion of this statement to the D7 database API syntax.
+    /* db_query('DELETE FROM {vwrooms_thumb} WHERE fid = %d', $fid) */
+    db_delete('vwrooms_thumb')
+  ->condition('fid', $fid)
+  ->execute();
+
+  }
+
+  $f = db_query("select * from {vwrooms_thumb} where nid=$node->nid")->fetchObject();
+  if ($f->snapshot) {
+    file_unmanaged_delete('./' . $f->snapshot);
+  }
+  if ($f->thumb) {
+    file_unmanaged_delete('./' . $f->thumb);
+  }
+
+
+
+  // Delete all file revision information associated with the node
+
+}
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwrooms_filter_form_submit($form, &$form_state) {
+  $v = $form_state['values'];
+
+  if (is_array($v['rt'])) {
+    setcookie('vwrooms_list_rt', serialize($v['rt']));
+  }
+  else {
+    setcookie('vwrooms_list_rt', $v['rt']);
+  }
+
+  setcookie('vwrooms_list_u', $v['u']);
+  setcookie('vwrooms_list_o', $v['o']);
+  setcookie('vwrooms_list_a', $v['a']);
+  setcookie('vwrooms_list_d', $v['d']);
+
+
+}
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwrooms_filter_form() {
+  $sc = variable_get('vwrooms_showt', array());
+
+  drupal_add_js('
+  $=jQuery.noConflict();
+
+
+  $(
+function(){
+
+$(".vwrooms-form-submit").click(function(){
+$("#vwrooms-filter-form").submit();
+});
+
+}
+
+)', array('type' => 'inline'));
+  $form = array();
+  ///	$form['#name']='vwrooms_filter_form';
+  $form['f'] = array('#type' => 'fieldset', '#collapsible' => true, '#collapsed' => true, '#title' => t('Filter'));
+  $types = array('vls', 'vconsult', 'vconf', 'v2wvc');
+
+
+
+  $options = array('vconf' => t('Video conference room'), 'vls' => t('Live Streaming channel'), 'v2wvc' => t('2 Way Video Chat room'), 'vconsult' => t('Video Consultation room'),);
+
+
+  foreach ($options as $tm => $vm) {
+
+    if (!module_exists($tm)) {
+      unset($options[$tm]);
+
+    }
+  }
+  foreach ($types as &$tm) {
+
+    if (!module_exists($tm)) {
+      unset($tm);
+
+    }
+  }
+  if (!in_array('t', $sc)) {
+
+
+  }
+  else {
+
+    if ($_COOKIE['vwrooms_list_rt']) {
+      $rt = @unserialize($_COOKIE['vwrooms_list_rt']);
+    }
+    if (!is_array($rt)) {
+      $rt = $types;
+    }
+  }
+  /*
+   foreach($rt as $type){
+
+   $vo=array_merge((array)$vo,(array)taxonomy_get_vocabularies($type));
+
+   }
+   */
+
+  /*
+   foreach($vo as $vid=>$v){
+   $result = db_query(db_rewrite_sql('SELECT t.tid, t.*  FROM {taxonomy_term_data} t  WHERE t.vid = %d ORDER BY weight, name', 't', 'tid'), $vid);
+   while ($term = db_fetch_object($result)) {
+   $terms[$vid][$term->tid] = $term;
+   }
+   }
+   */
+
+
+
+  if (in_array('t', $sc)) {
+    $form['f']['rt'] = array('#type' => 'checkboxes', '#options' => $options, '#title' => t('Room Type'), '#default_value' => $rt, '#attributes' => array('class' => 'vwrooms-form-submit'));
+  }
+  else {
+    $form['f']['rt'] = array('#type' => 'hidden', '#value' => implode(',', $options));
+  }
+
+
+  if (in_array('u', $sc)) {
+    $form['f']['u'] = array('#type' => 'radios', '#options' => array('0' => t('All'), '1' => t('No'), '2' => t('Yes')), '#title' => t('User Online'), '#default_value' => (int) $_COOKIE['vwrooms_list_u'], '#attributes' => array('class' => 'vwrooms-form-submit'));
+  }
+  else {
+    $form['f']['u'] = array('#type' => 'hidden', '#value' => variable_get('vwrooms_showfiltcol_u', '0'));
+  }
+
+
+  if (in_array('o', $sc)) {
+    $form['f']['o'] = array('#type' => 'radios', '#options' => array('0' => t('All'), '1' => t('No'), '2' => t('Yes'), '3' => t('Only'),), '#title' => t('Owner Online'), '#default_value' => (int) $_COOKIE['vwrooms_list_o'], '#attributes' => array('class' => 'vwrooms-form-submit'));
+  }
+  else {
+    $form['f']['o'] = array('#type' => 'hidden', '#value' => variable_get('vwrooms_showfiltcol_o', '0'));
+  }
+
+
+
+
+  if (in_array('a', $sc)) {
+    $form['f']['a'] = array('#type' => 'radios', '#options' => array('0' => t('All'), 'P' => t('Private'), 'F' => t('Public')), '#title' => t('Access'), '#default_value' => $_COOKIE['vwrooms_list_a'], '#attributes' => array('class' => 'vwrooms-form-submit'));
+  }
+  else {
+    $form['f']['a'] = array('#type' => 'hidden', '#value' => variable_get('vwrooms_showfiltcol_a', '0'));
+  }
+
+
+
+  $tag = variable_get('vwrooms_tag', '');
+  $ntypes = array();
+  foreach ($types as $t) {
+    $ntypes[] = "'" . $t . "'";
+
+  }
+
+  $ntypes = implode(',', $ntypes);
+
+
+
+
+
+
+
+
+  ///	if(in_array('d',$sc))
+  if ($tag && in_array('d', $sc)) {
+  	$vidt=variable_get('vwrooms_tagfield','vwroomstags');
+
+///    $vid = db_query("select vid from {taxonomy_vocabulary} where name like :s", array(':s'=>$tag))->fetchField();
+    if ($vidt) {
+///      $form['f']['d'] = array('#type' => 'textfield', '#default_value' => $_COOKIE['vwrooms_list_d'], '#title' => t('Tags'), '#description' => t('comma separated list of taxonomy terms'), '#autocomplete_path' => 'taxonomy/autocomplete/' . $vid);
+if($vidt){
+    	$form['f']['tags'] = array(
+    	        '#type' => 'textfield',
+    	        '#default_value' => taxonomy_implode_tags($tags),
+    	        '#title' => 'Add Tags',
+    	        '#autocomplete_path' => 'taxonomy/autocomplete/field_'.$vidt,
+    	        '#maxlength' => 1024,
+    	        '#element_validate' => array('taxonomy_autocomplete_validate')
+    	);
+}
+
+
+    }
+
+  }
+  ///if(in_array('d',$sc)||in_array('t',$sc)||in_array('u',$sc)||in_array('o',$sc)||in_array('a',$sc))
+  $form['f']['submit'] = array('#type' => 'submit', '#value' => t('Filter'));
+  ///else
+  ///$form['d']=array('#type'=>'markup','#value'=>'');
+  $form_state['#redirect'] = 'vwrooms/list';
+  return $form;
+
+}
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwrooms_blocklist() {
+
+  global $base_url;
+
+  global $vwrooms_blockdone,$user;
+
+  if (!$vwrooms_blockdone) {
+    $x = variable_get('vwrooms_idletime', 2);
+
+    // TODO Please convert this statement to the D7 database API syntax.
+    db_query("delete from {vwrooms_users} where adddate(timestamp,interval $x MINUTE) < now() ");
+    db_query("delete from {vwrooms_stat} ");
+    db_query("delete from {vwrooms_ostat} ");
+
+
+    $q = db_query("select count(*) c, room_nid from {vwrooms_users} u where timestamp is not null  group by room_nid");
+    while ($fq = $q->fetchObject()) {
+
+      db_query("insert into {vwrooms_stat} set uc=:d,room_nid=:d1", array(':d'=>$fq->c,':d1'=> $fq->room_nid));
+
+
+    }
+
+    $q = db_query("select count(*) c, room_nid from {vwrooms_users} u where o=1 and timestamp is not null group by room_nid");
+    while ($fq = $q->fetchObject()) {
+
+      db_query("insert into {vwrooms_ostat} set uc=:d,room_nid=:d1 ", array(':d'=>$fq->c,':d1'=> $fq->room_nid));
+
+
+    }
+  }
+
+
+  $types = array('vls', 'vconsult', 'vconf', 'v2wvc');
+  foreach ($types as $id => $type) {
+    if (!module_exists($type)) {
+      unset($types[$id]);
+    }
+
+  }
+  $arg = $where = array();
+  $options = array('vconf' => t('Video conference room'), 'vls' => t('Live Streaming channel'), 'v2wvc' => t('2 Way Video Chat room'), 'vconsult' => t('Video Consultation room'));
+
+  $sc = variable_get('vwrooms_showblockcol', array());
+  $cn = variable_get('vwrooms_showblockc', 5);
+  $ch = variable_get('vwrooms_showblockh', 0);
+
+  $where[] = 1;
+
+
+
+
+  $u = variable_get('vwrooms_showfiltcol_u', 0);
+
+  if ($u) {
+    if ($u == 1) {
+      $where['u'] = " (st.uc is null or   st.uc=0 )  ";
+
+    }
+    else if ($u == 2) {
+
+      $where['u'] = " (st.uc is not null and  st.uc>0 ) ";
+
+    }
+  }
+  $o = variable_get('vwrooms_showfiltcol_o', 0);
+
+  if ($o) {
+    if ($o == 1) {
+      $where[] = " (ot.uc is  null or  ot.uc=0  ) ";
+
+    }
+    else if ($o == 2) {
+
+      $where[] = " ( ot.uc is not null and   ot.uc>0  ) ";
+
+    }
+    else if ($o == 3) {
+      unset($where['u']);
+
+      $where[] = " (ot.uc>0    and    st.uc=1  )     ";
+
+    }
+  }
+
+  $a = variable_get('vwrooms_showfiltcol_a', 0);
+
+  if ($a) {
+    if ($a == 'P') {
+      $where[] = "( r.users is not null and length(r.users)>0  )";
+    }
+    else if ($a == 'F') {
+      $where[] = "( r.users is  null or length(r.users)==0  )";
+    }
+    $join = "";
+  }
+
+  $vc = $vcjoin = "";
+  ////$where ="where ".implode(" and ",$where);
+  if (module_exists('vwcredits', 'module')) {
+    $vc = ", v.roomcost ";
+
+    $vcjoin = "  left join {vwcredits_cost} v on (v.room_nid=n.nid) ";
+  }
+
+  $sql = array();
+  $csql = array();
+
+  $where[] = 1;
+  $where = "where " . implode(" and ", $where);
+$language=$user->language;
+if(!$language)
+$language='und';
+  foreach ($types as $type) {
+    ///echo $sql;
+    $sql[] = "select n.nid,t.thumb,st.uc as uc,ot.uc as oc, r.room ,n.type,substring(nr.body_value,1,100) as d,u.name,u.uid,length(r.users)>0 a $vc from {{$type}_rooms}
+		r inner join {node} n on (n.nid=r.nid and n.language='$language')
+		inner join {field_data_body} nr on (nr.entity_id=r.nid and nr.delta=0) inner join {users} u on (u.uid=n.uid)
+		$vcjoin  left join {vwrooms_thumb} t on (t.nid=n.nid) left join {vwrooms_stat} st on (st.room_nid=n.nid) left join {vwrooms_ostat} ot on (ot.room_nid=n.nid) $where  ";
+
+
+
+
+
+
+
+  }
+  if (!count($types)) {
+
+    return t('No rooms');
+  }
+  $sql = implode(" union ", $sql);
+
+  $header[] = array('data' => t('Room Name'));
+
+  $data = array();
+
+
+
+
+  $st = array();
+  if (in_array('o', $sc)) {
+    $st[] = " oc desc ";
+  }
+  if (in_array('u', $sc)) {
+    $st[] = " uc desc ";
+  }
+  if (in_array('c', $sc) && $vc) {
+    $st[] = " roomcost asc ";
+  }
+
+
+  if (count($st)) {
+    $tablesort = " order by  " . implode(",", $st);
+  }
+  else {
+    $tablesort = "";
+  }
+
+
+
+
+  // TODO Please convert this statement to the D7 database API syntax.
+  $q = db_query($sql . " limit $cn");
+
+
+  while ($f = $q->fetchObject()) {
+    $r = array();
+
+    $r['r'] =check_plain($f->room);// l(check_plain($f->room), "node/" . $f->nid);
+	$r['ln']=url("node/".$f->nid);
+    if (in_array('r', $sc)) {
+      $r['t'] = $options[$f->type];
+    }
+    $src = $base_url . '/' . $f->thumb;
+    if (in_array('u', $sc)) {
+      $r['u'] = $f->uc;
+    }
+    if (in_array('o', $sc)) {
+      $r['o'] = $f->name;
+    }
+    if (in_array('n', $sc)) {
+      $r['n'] = $f->oc ? t('Yes') : t('No');
+    }
+    if (in_array('a', $sc)) {
+      $r['a'] = $f->a ? t('Private') : t('Public');
+    }
+
+    if (in_array('c', $sc) && $vc) {
+      $r['c'] = $f->roomcost ? $f->roomcost : 0;
+    }
+    $r['oc'] = (int) $f->oc + (int) $f->uc;
+    $data[] = $r;
+
+  }
+  if (!$ch) {
+    $header = array();
+  }
+
+
+  return theme('vwrooms_block', array('header' => $header, 'data' => $data));
+
+
+
+
+
+}
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwrooms_list() {
+
+  global $vwrooms_blockdone,$user;
+  $language=$user->language;
+  if(!$language)
+  $language='und';
+
+
+  if (!$vwrooms_blockdone) {
+    $x = variable_get('vwrooms_idletime', 2);
+
+    // TODO Please convert this statement to the D7 database API syntax.
+    db_query("delete from {vwrooms_users} where adddate(timestamp,interval $x MINUTE) < now() ");
+    db_query("delete from {vwrooms_stat} ");
+    db_query("delete from {vwrooms_ostat} ");
+
+    $q = db_query("select count(*) c, room_nid from {vwrooms_users} u where timestamp is not null   group by room_nid");
+    while ($fq = $q->fetchObject()) {
+
+      db_query("insert into {vwrooms_stat} set uc=:d,room_nid=:d1", array(':d'=>$fq->c,'d1'=> $fq->room_nid));
+
+
+    }
+
+    $q = db_query("select count(*) c, room_nid from {vwrooms_users} u where o=1 and timestamp is not null  group by room_nid");
+    while ($fq = $q->fetchObject()) {
+      db_query("insert into {vwrooms_ostat} set uc=:d,room_nid=:d1 ", array(':d'=>$fq->c, ':d1'=>$fq->room_nid));
+    }
+  }
+
+  global $base_url;
+  $arg = $where = array();
+  $types = array('vls' => 'vls', 'vconsult' => 'vconsult', 'vconf' => 'vconf', 'v2wvc' => 'v2wvc');
+  foreach ($types as $id => $type) {
+    if (!module_exists($type)) {
+      unset($types[$id]);
+    }
+
+  }
+
+  $options = array('vconf' => t('Video conference room'), 'vls' => t('Live Streaming channel'), 'v2wvc' => t('2 Way Video Chat room'), 'vconsult' => t('Video Consultation room'));
+
+  $sc = variable_get('vwrooms_showlistcol', array());
+  $sc2 = variable_get('vwrooms_showt', array());
+
+
+  if ($_COOKIE['vwrooms_list_rt']) {
+    $rtx = unserialize($_COOKIE['vwrooms_list_rt']);
+  }
+  if (!$rtx || !is_array($rtx)) {
+    $rtx = $types;
+  }
+
+  $rt = array();
+  foreach ($rtx as $tp => $x) {
+    if (!in_array($tp, $types)) {
+      return t('Invalid');
+    }
+    if ($x) {
+      $rt[] = $tp;
+    }
+
+  }
+
+
+
+
+
+
+  $u = $_COOKIE['vwrooms_list_u'];
+
+  if ($u) {
+    if ($u == 1) {
+      $where['u'] = " (st.uc is null or   st.uc=0 )  ";
+
+    }
+    else if ($u == 2) {
+
+      $where['u'] = " (st.uc is not null and  st.uc>0 ) ";
+
+    }
+  }
+  $o = $_COOKIE['vwrooms_list_o'];
+
+  if ($o) {
+    if ($o == 1) {
+      $where[] = " (ot.uc is  null or  ot.uc=0  ) ";
+
+    }
+    else if ($o == 2) {
+
+      $where[] = " ( ot.uc is not null and   ot.uc>0  ) ";
+
+    }
+    else if ($o == 3) {
+      unset($where['u']);
+
+      $where[] = " (ot.uc>0    and   st.uc=1   )    ";
+
+    }
+  }
+  $a = $_COOKIE['vwrooms_list_a'];
+
+  if ($a) {
+    if ($a == 'P') {
+      $where[] = "( r.users is not null and length(r.users)>0  )";
+    }
+    else if ($a == 'F') {
+      $where[] = "( r.users is  null or length(r.users)=0  )";
+    }
+    $join = "";
+  }
+
+
+  $jt = '';
+  $d = $_COOKIE['vwrooms_list_d'];
+
+  if ($_GET['tid']) {
+    if ($_GET['tid']) {
+      $where[] = " td.tid = " . (int) $_GET['tid'];
+      $jt = " inner join {taxonomy_index} tn on (tn.nid=n.nid) inner join {taxonomy_term_data} td on (td.tid=tn.tid) ";
+    }
+  }
+  else if ($d) {
+    $ds = explode(',', $d);
+    $dss = implode(" ", $ds);
+   /// $dss = _escape_string($dss);
+
+    ///		$where[]="  match(n.title,nr.body,r.room)  against ('$dss'   in boolean mode ) ";
+    ////echo "dss $dss";
+    $tags = explode(',',addslashes( $d));
+    foreach ($tags as &$t) {
+      $t = "'" .$t . "'";
+    }
+    $tags = implode(',', $tags);
+    $where[] = " td.name in ($tags)";
+
+    $jt = " inner join {taxonomy_term_node} tn on (tn.nid=n.nid) inner join {taxonomy_term_data} td on (td.tid=tn.tid) ";
+
+
+
+  }
+
+  $where[] = 1;
+  $vc = $vcjoin = "";
+  $where = "where " . implode(" and ", $where);
+  if (module_exists('vwcredits', 'module')) {
+    $vc = ", v.roomcost ";
+    $vcjoin = "  left join {vwcredits_cost} v on (v.room_nid=n.nid) ";
+  }
+  $count = 10;
+
+  ///echo $sql;
+  //$sql="select n.nid,t.thumb,st.uc as uc,ot.uc as oc, r.room ,n.type,substring(nr.teaser,1,250) as d,u.name,u.uid,length(r.users)>0 a $vc from {{$rtroom}} r inner join {node} n on (n.nid=r.nid)
+  //inner join {node_revisions} nr on (nr.nid=r.nid) inner join {users} u on (u.uid=n.uid)  $vcjoin  left join {vwrooms_thumb} t on (t.nid=n.nid) left join {vwrooms_stat} st on (st.room_nid=n.nid) left join {vwrooms_ostat} ot on (ot.room_nid=n.nid)  ";
+
+  //$csql="select count(*)  from {{$rtroom}} r inner join {node} n on (n.nid=r.nid)
+  //inner join {node_revisions} nr on (nr.nid=r.nid) inner join {users} u on (u.uid=n.uid) left join {vwrooms_stat} st on (st.room_nid=n.nid) left join {vwrooms_ostat} ot on (ot.room_nid=n.nid)    ";
+
+  $sql = array();
+  $csql = array();
+  if (!count($rt)) {
+    return t('No rooms to display');
+  }
+  foreach ($rt as $type) {
+    ///echo $sql;
+    $sql[] = "select distinct n.nid,n.vid,t.thumb,st.uc as uc,ot.uc as oc, r.room ,n.type,n.title as rname,substring(nr.body_value,1,100) as d,u.name,u.uid,(r.users is not null and length(r.users)>0) a $vc from {{$type}_rooms} r inner join {node} n on (n.nid=r.nid)
+left join {field_data_body} nr on (nr.entity_id=r.nid and nr.language='$language') inner join {users} u on (u.uid=n.uid)
+$jt
+$vcjoin  left join {vwrooms_thumb} t on (t.nid=n.nid) left join {vwrooms_stat} st on (st.room_nid=n.nid) left join {vwrooms_ostat} ot on (ot.room_nid=n.nid) $where  ";
+
+    $csql[] = " ( select count(distinct r.nid) as c  from {{$type}_rooms} r inner join {node} n on (n.nid=r.nid)
+left join {field_data_body} nr on (nr.entity_id=r.nid and nr.language='$language') inner join {users} u on (u.uid=n.uid)
+$jt
+left join {vwrooms_stat} st on (st.room_nid=n.nid) left join {vwrooms_ostat} ot on (ot.room_nid=n.nid) $where    )  ";
+  }
+  $sql = implode(" union all \n", $sql);
+  $csql = " select sum(c) as cx from ( " . implode(" union all \n", $csql) . ') tx';
+
+
+
+
+  $header['e'] = array('data' => t('Room Name'), 'field' => 'rname', 'sort' => 'asc');
+
+  if (in_array('d', $sc)) {
+    $header['d'] = array('data' => t('Description'));
+  }
+  $j = 1;
+
+  if (in_array('r', $sc)) {
+    $header['r'] = array('data' => t('Room Type'), 'field' => 'type');
+    $j++;
+  }
+
+  if (in_array('g', $sc)) {
+    $header['g'] = array('data' => t('Tags'));
+  }
+
+  if (in_array('t', $sc)) {
+    $header['t'] = array('data' => t('Thumb'));
+  }
+
+  if (in_array('u', $sc)) {
+    $header['u'] = array('data' => t('Users Online'), 'field' => 'uc');
+  }
+
+
+  if (in_array('o', $sc)) {
+    $header['o'] = array('data' => t('Owner'), 'field' => 'name');
+  }
+  if (in_array('n', $sc)) {
+    $header['n'] = array('data' => t('Owner Online'), 'field' => 'oc');
+  }
+
+
+  if (in_array('a', $sc)) {
+    if ($vc) {
+      $fl = 'roomcost';
+    }
+    else {
+      $fl = 'a';
+    }
+    $header['a'] = array('data' => t('Access'), 'field' => $fl);
+    $header['c'] = '';
+    if ($vc) {
+      if (in_array('c', $sc)) {
+        $header['c'] = array('data' => t('Cost'), 'field' => 'roomcost');
+      }
+    }
+  }
+  else if ($vc && in_array('c', $sc)) {
+
+    $header['c'] = array('data' => t('Cost'), 'field' => 'roomcost');
+
+  }
+
+
+
+
+  $data = array();
+
+
+//  $tablesort = tablesort_sql($header);
+  if (!$tablesort) {
+    $st = array();
+    if (in_array('o', $sc)) {
+      $st[] = " oc desc ";
+    }
+    if (in_array('u', $sc)) {
+      $st[] = " uc desc ";
+    }
+    if (in_array('c', $sc) && $vc) {
+      $st[] = " roomcost asc ";
+    }
+
+    //if(count($st))
+    //$tablesort=" order by  ".implode(",",$st);
+
+
+  }
+  else {
+
+
+  }
+  // If not sorting by timestamp then make that the 2nd field to sort on
+$limit=10;
+$args=array();
+   $output=drupal_render(drupal_get_form('vwrooms_filter_form'));
+  $q = vwrooms_pager_query($sql,$csql,$args,$header,$limit);
+///echo $q->getQueryString();
+  while ($f = $q->fetchObject()) {
+    $r = array();
+
+    $r['l'] = l($f->rname, "node/" . $f->nid);
+    $rul=url("node/".$f->nid);
+    if (in_array('r', $sc)) {
+      $r['r'] = $options[$f->type];
+    }
+    $src = $base_url . '/' . $f->thumb;
+
+    if (in_array('t', $sc)) {
+      if ($f->thumb && is_file($f->thumb)) {
+        $r['t'] = array('data' =>   "<a href='$rul'><img src='$src' title='' alt='$f->thumb'/></a>", 'rowspan' => 2);
+      }
+      else {
+        $src = url('vwrooms/image/' . $f->type . '/' . $f->room, array('absolute' => true));
+        $r['t'] = array('data' => "<a href='$rul'><img src='$src' title=''  width='160' height='120'/></a>", 'rowspan' => 2);
+      }
+    }
+
+    if (in_array('d', $sc)) {
+      $r['d'] = array('data' => wordwrap($f->d, 50, "<br/>", true), 'style' => 'font-style:italic;');
+    }
+
+    if (in_array('u', $sc)) {
+      $r['u'] = array('data' => (int) $f->uc, 'rowspan' => 2);
+    }
+    if (in_array('o', $sc)) {
+      $r['o'] = l($f->name, "user/" . $f->uid);
+    }
+    if (in_array('n', $sc)) {
+      $r['oc'] = $f->oc ? t('Yes') : t('No');
+    }
+    if (in_array('a', $sc)) {
+		if($vc){
+			$r['a'] = $f->roomcost>0 ? t('Private') : t('Public');
+
+		}
+		else
+    	$r['a'] = $f->a ? t('Private') : t('Public');
+
+    }
+
+    if (in_array('c', $sc) && $vc) {
+      $r['c'] = number_format((float) $f->roomcost, 2);
+    }
+
+
+    if (in_array('g', $sc)) {
+      // TODO Please convert this statement to the D7 database API syntax.
+      $result = db_query('SELECT t.name,t.tid,t.vid FROM {taxonomy_index} r
+      INNER JOIN {taxonomy_term_data} t ON r.tid = t.tid INNER JOIN {taxonomy_vocabulary} v ON t.vid = v.vid WHERE
+       r.nid = '.(int)$f->nid.' ORDER BY v.weight, t.weight, t.name');
+      $terms = array();
+      while ($t = $result->fetchObject()) {
+        if (!in_array($t->name, $terms)) {
+          $terms[] =  l($t->name, "vwrooms/list", array('query' => array('tid' => $t->tid, 'vid' => $t->vid)));
+        }
+      }
+
+      $r['g'] = implode(',', $terms);
+    }
+
+
+    $data[] = $r;
+
+
+  }
+
+
+  return $output.theme('vwrooms_mainlist', array('header' => $header, 'data' => $data, 'count' => $count)).vwrooms_pager();
+  ///  $output .= theme('pager', NULL, 50, 0);
+
+
+}
+function vwrooms_insert_id(){
+return	db_query("select last_insert_id()")->fetchField();
+}
+function vwrooms_pager($limit=50){
+return theme('pager');
+}
+
+/**
+* Order the query based on a header array.
+*
+* @return SelectQueryInterface
+*   The called object.
+*/
+
+function vwrooms_pager_query($sql,$csql,$args2,$header,$limit=50,$df=''){
+$obq="";
+$limitq="";
+$args=array();
+if(!is_array($args2))
+$args2=array();
+if(!$limit)
+$limit=50;
+foreach ($args2 as $k=>$arg){
+
+	if(strpos($k,':')===false&&!is_numeric($k)){
+		$k=':'.$k;
+	}
+	$args[$k]=$arg;
+
+}
+
+	$total_items = db_query($csql,$args)->fetchField();
+	$current_page = pager_default_initialize($total_items, $limit, 0);
+	$limitq="  limit  ".
+	($current_page * $limit).
+	  " ,$limit";
+if($df){
+	$obq=$df;
+
+
+}
+
+else if(is_array($header)){
+	///$ts = $this->init();
+	$ts = tablesort_get_order($header);
+	$ts['sort'] = tablesort_get_sort($header);
+	$ts['query'] = tablesort_get_query_parameters();
+
+
+	if (!empty($ts['sql'])) {
+		// Based on code from db_escape_table(), but this can also contain a dot.
+		$field = preg_replace('/[^A-Za-z0-9_.]+/', '', $ts['sql']);
+
+		// Sort order can only be ASC or DESC.
+		$sort = drupal_strtoupper($ts['sort']);
+		$sort = in_array($sort, array('ASC', 'DESC')) ? $sort : '';
+		$obq=" order by $field $sort ";
+	}
+}
+$sql=$sql.$obq.$limitq;
+return db_query($sql,$args);
+
+}
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwrooms_cron() {
+
+
+  $ztime = REQUEST_TIME;
+  $types=array();
+  $typeo = array('vls', 'vconsult', 'v2wvc', 'vconf');
+  for($i=0;$i<count($typeo);$i++){
+  	if(module_exists($typeo[$i])){
+  		$types[]=$typeo[$i];
+  	}
+  }
+
+  foreach ($types as $type) {
+    // TODO Please convert this statement to the D7 database API syntax.
+    $q = db_query("select * FROM {{$type}_rooms} WHERE ((timeexpire>0) AND (timeexpire<$ztime)) OR ((timeout>0) AND (($ztime-timelastaccess)>timeout))");
+    while ($f = $q->fetchObject()) {
+      $room = $f->room;
+      node_delete($f->nid);
+      ///db_query("delete FROM {{$type}_rooms} WHERE ((timeexpire>0) AND (timeexpire<$ztime)) OR ((timeout>0) AND (($ztime-timelastaccess)>timeout))");
+    }
+
+
+    $x = variable_get('vwrooms_idletime', 2);
+
+    // TODO Please convert this statement to the D7 database API syntax.
+    db_query("delete from {vwrooms_users} where adddate(timestamp,interval $x MINUTE) < now() ");
+
+
+    $q = db_query("select count(*) c, room_nid from {vwrooms_users} u where o=0  group by room_nid");
+    while ($fq = $q->fetchObject()) {
+
+      db_query("replace into {vwrooms_stat} set uc=:d,room_nid=:d1", array(':d'=>$fq->c,':d1'=> $fq->room_nid));
+
+
+    }
+
+    $q = db_query("select count(*) c, room_nid from {vwrooms_users} u where o=1 group by room_nid");
+    while ($fq = $q->fetchObject()) {
+
+      db_query("replace into {vwrooms_ostat} set uc=:d,room_nid=:d1 ", array(':d'=>$fq->c,':d1'=> $fq->room_nid));
+
+
+    }
+
+    $d = variable_get('vwrooms_snaphours', 0);
+    $c = variable_get('vwrooms_snapcount', 0);
+    if ($d || $c) {
+
+      $t = $d * 60 * 60 * 24;
+      ///	$t=1;
+
+      foreach ($types as $type) {
+
+
+        $sitepath = variable_get($type . "_path", "") . 'snapshots';
+
+        $p =   "." . $sitepath;
+        if (is_dir($p)) {
+
+          $fp = opendir($p);
+
+          while (false !== ($r = readdir($fp))) {
+
+            if ($r == "." || $r == "..") {
+              continue;
+            }
+            if (!is_dir($p . '/' . $r)) {
+              continue;
+            }
+            $fsd = opendir($p . '/' . $r);
+            $files = array();
+            $times = array();
+            $s = 0;
+            while (false !== ($rs = readdir($fsd))) {
+              if ($rs == '.' || $rs == '..') {
+                continue;
+              }
+              if (!is_file($rs)) {
+                continue;
+              }
+              $x = filemtime($p . '/' . $r . '/' . $rs);
+              if (!$x) {
+                watchdog('vw-cronerror', t("cannot read timestamp for @a", array('@a' => "$p/$r/$rs")), WATCHDOG_ALERT);
+                continue;
+              }
+
+              if ($t) {
+                if ((REQUEST_TIME -$x) > $t) {
+                  @unlink($p . '/' . $r . '/' . $rs);
+                  echo "file $p/$r/$rs deleted\n<br/>";
+                }
+
+
+              }
+              ///t
+              else if ($c) {
+
+                $files[$s] = "$p/$r/$rs";
+
+                $times[$s++] = $x;
+
+
+
+              }
+
+            }
+            //fsd rs snap file
+
+            if ($c) {
+
+              array_multisort($times, SORT_DESC, SORT_STRING, $files);
+
+              array_splice($files, 0, $c);
+              foreach ($files as $f) {
+                echo "deleted file $f\r\n<br/>";
+                @unlink($f);
+
+              }
+
+
+            }
+            //for the room r
+
+
+          }
+          //all rooms under snap..
+
+
+
+
+
+        } ///snap.. dir
+        //deleted snapshots
+      }
+      //d||c
+      watchdog('vw', 'snapshots cleared for ' . $type, WATCHDOG_INFO);
+      //log file removal start.
+
+
+      $sitepath = variable_get($type . "_path", "") . 'uploads';
+
+
+      $d = variable_get('vwrooms_loghours', 0);
+      if (!$d) {
+        return;
+      }
+
+
+      $t = $d * 60 * 60 * 24;
+
+
+
+      $p =   "." . $sitepath;
+      if (is_dir($p)) {
+
+        $fp = opendir($p);
+
+        while (false !== ($r = readdir($fp))) {
+
+          if ($r == "." || $r == "..") {
+            continue;
+          }
+          if (!is_dir($p . '/' . $r)) {
+          }
+          else { //elsedir
+            $fsd = opendir($p . '/' . $r);
+            $files = array();
+            $times = array();
+            $s = 0;
+            while (false !== ($rs = readdir($fsd))) { //logfiles
+              if ($rs == '.' || $rs == '..') {
+                continue;
+              }
+
+              if (!is_file($rs) || strstr("Log", $rs) === false) {
+                continue;
+              }
+              $x = filemtime($p . '/' . $r . '/' . $rs);
+              if (!$x) {
+                watchdog('vw-cronerror', t("cannot read timestamp for @a", array('@a' => "$p/$r/$rs")), WATCHDOG_ALERT);
+                continue;
+              }
+
+              if ((REQUEST_TIME -$x) > $t) {
+                @unlink($p . '/' . $r . '/' . $rs);
+                echo "file $p/$r/$rs deleted\n<br/>";
+              }
+
+
+
+
+            }
+            //fsd rs log file
+
+          }
+          //elsedir
+
+        }
+        //all rooms under uploads.
+
+
+
+
+
+      } ///upload.. dir
+      //deleted snapshots
+
+      watchdog('vw', 'logs cleared for ' . $type, WATCHDOG_INFO);
+
+
+
+
+
+
+
+
+
+
+    }
+    //alltype
+
+
+
+  }
+
+}
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwrooms_removeroom($room, $type) {
+  if (!$room) {
+    ///echo "no room";
+    return;
+  }
+
+  $sitepath = variable_get($type . "_path", "") . 'uploads/' . $room;
+
+
+
+
+  $dir =   "." . $sitepath;
+  ////echo "Deleting $dir<br/>";
+
+
+  if (is_dir($dir)) {
+    $ds = scandir($dir);
+    foreach ($ds as $d) {
+      if ($d != "." && $d != "..") {
+        if (filetype($dir . "/" . $d) == "dir") {
+          rmdir($dir . "/" . $d);
+        }
+        else {
+          unlink($dir . "/" . $d);
+        }
+
+        ///   echo "deleted $dir/$d<br/>";
+
+      }
+    }
+    rmdir($dir);
+    ///  echo "deleted $dir<br/>";
+  } ///else
+  /// echo "nod dir $dir<br/>";
+
+
+  $sitepath = variable_get($type . "_path", "") . 'snapshots/' . $room;
+
+
+
+
+  $dir =   "." . $sitepath;
+
+  ///echo "Deleting $dir<br/>";
+  if (is_dir($dir)) {
+    $ds = scandir($dir);
+    foreach ($ds as $d) {
+      if ($d != "." && $d != "..") {
+        if (filetype($dir . "/" . $d) == "dir") {
+          rrmdir($dir . "/" . $d);
+        }
+        else {
+          unlink($dir . "/" . $d);
+        }
+        /// echo "deleted $dir/$d<br/>";
+
+      }
+    }
+
+    rmdir($dir);
+    ///    echo "deleted $dir<br/>";
+
+  } ///else
+  ////echo "not dir $dir<br/>";
+
+
+
+}
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwrooms_theme() {
+  $path = drupal_get_path('module', 'vwrooms');
+
+  return array(
+'vwrooms_logout' => array('variables' => array('module' => null, 'message' => null), 'path' => $path . '/templates', 'template' => 'logout'),
+'vwrooms_mainlist' => array('variables' => array('header' => null, 'data' => null, 'count' => null), 'path' => $path . '/templates', 'template' => 'vwrooms_mainlist'),
+'room_list' => array('variables' => array('data' => null, 'text' => null, 'type' => null), 'path' => $path . '/templates', 'template' => 'room_list'),
+'vwrooms_block' => array('variables' => array('header' => null, 'data' => null), 'path' => $path . '/templates', 'template' => 'vwrooms_block')
+
+
+);
+
+}
+
+
+
+if(!function_exists('vwrooms_crsetup')){
+
+
+	function vwrooms_crsetup($type){
+if(!module_exists('vwcredits'))
+return;
+$t=$type;
+
+	$form['f_' . $type]["vwcredits_{$t}_idletime"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Transfer apply interval'), '#default_value' => variable_get("vwcredits_{$t}_idletime", '60'), '#description' => t('after x seconds pending transactions will be applied'));
+
+
+	$form['f_' . $type]["vwcredits_{$t}_mm"] = array(
+	'#type' => 'select', '#title' => t('Module Mode'), '#descriptions' => t('Module mode'), '#default_value' => variable_get("vwcredits_{$t}_mm", 'User')
+			, '#options' => array('Free' => t('Free'), 'Paid' => t('Paid'), 'User' => t('As configured by room owner.'))
+			);
+
+
+	$form['f_' . $type]["vwcredits_{$t}_defaultgracetime"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Grace Period'), '#descriptions' => t('Grace Period'), '#default_value' => variable_get("vwcredits_{$t}_defaultgracetime", '30')
+			, '#description' => t('In seconds')
+			);
+
+	$form['f_' . $type]["vwcredits_{$t}_maxgracetime"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Max Grace Period'), '#descriptions' => t('When owner can change'), '#default_value' => variable_get("vwcredits_{$t}_maxgracetime", '300')
+			, '#description' => t('In seconds')
+
+			);
+	    $form['f_' . $type]["vwcredits_{$t}_mingracetime"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Min Grace Period'), '#descriptions' => t('When owner can change'), '#default_value' => variable_get("vwcredits_{$t}_mingracetime", '0')
+			, '#description' => t('In seconds')
+
+			);
+
+
+
+	    $form['f_' . $type]["vwcredits_{$t}_ownerscost"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Room Owner\'s cost'), '#default_value' => variable_get("vwcredits_{$t}_ownerscost", '0.1')
+
+			);
+
+	    $form['f_' . $type]["vwcredits_{$t}_ownersroomcost"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Cost of using own room'), '#default_value' => variable_get("vwcredits_{$t}_ownersroomcost", '0.1')
+
+			);
+
+	    $form['f_' . $type]["vwcredits_{$t}_roomcost"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('User Cost'), '#default_value' => variable_get("vwcredits_{$t}_roomcost", '4.0')
+			);
+
+	    $form['f_' . $type]["vwcredits_{$t}_maxroomcost"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Max User Cost'), '#description' => t('When room owner can set'), '#default_value' => variable_get("vwcredits_{$t}_maxroomcost", '10')
+			);
+
+	    $form['f_' . $type]["vwcredits_{$t}_minroomcost"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Min User Cost'), '#description' => t('When room owner can set'), '#default_value' => variable_get("vwcredits_{$t}_minroomcost", '0.0')
+			);
+
+	    $form['f_' . $type]["vwcredits_{$t}_ownersgain"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Owner\'s gain'), '#default_value' => variable_get("vwcredits_{$t}_ownersgain", '0.75')
+			, '#description' => t('within 0-1'));
+
+$arr=	    $form['f_' . $type];
+    foreach ($arr as $nm => $v) {
+      $value = $v['#default_value'];
+
+      variable_set($nm, $value);
+
+    }
+
+
+
+
+
+}
+}

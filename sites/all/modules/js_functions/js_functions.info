@@ -1,0 +1,8 @@
+name = E-Health javascript Functions
+description = E-Health javascript Functions.
+core = 7.x
+php = 5.1
+configure = admin/config/block_views
+files[] = js_functions.module
+
+

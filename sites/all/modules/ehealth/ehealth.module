@@ -1,0 +1,238 @@
+<?php
+function ehealth_init() {
+	$node = node_load(10);
+	//p($node);exit;
+}
+
+function p($data) {
+	print "<pre>";
+	print_r($data);
+	print "</pre>";
+}
+function ehealth_block_view_alter(&$data, $block) {
+	//p($block);
+	
+	switch($block->module) {
+		case "jquery_countdown_timer" :
+		//print strtotime("+1 day");
+			$data['content']['#attached'][0]['data']['jquery_countdown_timer']['jquery_countdown_timer_date'] = strtotime("+1 day");
+			//p($data);
+		break;
+	}
+}
+
+function ehealth_form_alter(&$form, &$form_state, $form_id) {
+	global $user;
+	
+	//print $form_id;
+	switch($form_id) {
+		case "views_exposed_form" :
+			if($form_state['view']->name == "browse_hospital") {		
+				$form['submit']['#value'] = "Go";
+				//p($form);
+			}
+		break;
+		case "rating_node_form" :
+		//p($form);
+		$form['field_select_hospitals']['und']['#default_value'] = $_SESSION['hid'];
+			 //drupal_set_title('My new title');
+		break;
+		case "user_profile_form" :		
+			$form['field_event_hospitals']['#access'] = FALSE;
+			$form['field_districts']['#access'] = FALSE;
+			$form['field_hospital_type']['#access'] = FALSE;
+		break;
+		case "contact_site_form":
+			//p($form);
+		break;
+		case "node_gallery_gallery_node_form" :
+		case "news_hospitals__node_form" :
+		case "quotes_node_form" :
+		case "static_pages_node_form" :
+		case "videos_hospital__node_form" :
+			$usr = user_load($user->uid);
+			//p($form['field_select_hospitals']['und']['#options']);
+			if($usr->field_event_hospitals['und'][0]) {
+				$allowed_vals = array();
+				foreach($usr->field_event_hospitals['und'][0] as $key=>$val) {
+					$allowed_vals[] = $val;
+				}
+				//$allowed_vals = substr($allowed_vals,0,strlen($allowed_vals)-1);
+				//print $allowed_vals;
+			}
+			
+			if($allowed_vals) {
+				if($form['field_select_hospitals']['und']['#options']) {
+					foreach($form['field_select_hospitals']['und']['#options'] as $fkey=>$fval) {
+						if(!in_array($fkey, $allowed_vals)) {
+							unset($form['field_select_hospitals']['und']['#options'][$fkey]);
+						}
+						//p($fval);
+					}
+				}
+			}
+			//$form['field_select_hospitals']['und']['#options'] = array($allowed_vals);
+		break;
+		
+	}
+}
+
+//~ function ehealth_menu_alter(&$items) {
+	//~ //p($items);exit;
+  //~ if ($link['link_title'] == 'foo') {
+    //~ $link['options']['alter'] = TRUE;
+  //~ }
+//~ }
+
+function load_theme_hospital() {
+	global $base_url;
+	$is_hospital = 0;
+	if(arg(0) == 'home' && arg(1) == 'hospitals') {
+		$is_hospital = 1;
+		if($_SESSION['hid'] != arg(2)) {
+			$_SESSION['hid'] = arg(2);
+		}
+	}
+	//p(arg());
+	$curent_node = node_load(arg(1));
+	//print $curent_node->type;
+	if(arg(1) && is_int(arg(1))) {
+		if($curent_node->type == 'node_gallery_gallery') {
+			$is_hospital = 1;
+		}
+		
+		if($curent_node->type == 'news_hospitals_') {
+			$is_hospital = 1;
+		}
+	}
+	if(arg(2) == 'rating') {
+		$is_hospital = 1;
+	}
+	if(arg(0) == 'galleries') {
+		$is_hospital = 1;
+	}
+	//p(arg());
+	if($is_hospital == 1) {
+		//unset($_SESSION['hid']);
+		if($_SESSION['hid'] == '') {
+			drupal_goto('<front>');
+		}
+	}
+	return $is_hospital;
+}
+
+function ehealth_node_presave($node) {
+	if($node->type == "rating") {
+		$divider = 3;
+		$hc_rating = $node->field_hospital_cleanliness['und'][0]['value'];
+		$nc_rating = $node->field_rating_nursing_care['und'][0]['value'];
+		$d_rating = $node->field_rating_diet['und'][0]['value'];
+		$total = ($hc_rating+$nc_rating+$d_rating)/$divider;
+		
+		
+		$node->field_rating_total['und'][0]['value'] = round($total,3);
+
+	}	
+}
+
+function rating_calculator() {
+	global $db, $base_url;
+	//print "here";
+	$url = $base_url."/rating/json?hid=".$_SESSION['hid'];
+	//print $url;
+	$json = file_get_contents($url);
+
+	$obj = json_decode($json);
+	if(count($obj)>0) {
+		$total = 0;
+		foreach ($obj as $key=>$val) {
+			//p($val->field_rating_total);
+			$total = $total + $val->field_rating_total;
+		}
+		$average = $total/count($obj);
+		
+		
+		$path = $base_url.'/'.path_to_theme()."/stars/";
+		
+		for($x=1;$x<=$average;$x++) {
+        echo '<img src="'.$path.'star-full-24.png" />';
+		}
+		if (strpos($average,'.')) {
+			echo '<img src="'.$path.'star-half-24.png" />';
+			$x++;
+		}
+		while ($x<=5) {
+			echo '<img src="'.$path.'star-empty-24.png" />';
+			$x++;
+		}
+	}
+
+}
+
+
+function hook_views_pre_execute(&$view) {
+  dpq($view->build_info['query']);
+}
+
+function ehealth_menu() {
+   $items = array();
+   $items['hospitallist/json'] = array(
+   'page callback' => 'get_hospitals_district',
+    'access callback' => TRUE,
+   'type' => MENU_CALLBACK,
+   'access arguments' => array('access content'), 
+   'title' => t('Hospital List'),
+  );
+  return $items;
+}
+
+function get_hospitals_district() {
+	global $database;
+	$distid = $_REQUEST['distid'];
+	$typeid = $_REQUEST['typeid'];
+	$sep = '';
+	$sep1 = '';
+	if(($distid != "All" && $typeid != "All") && ($distid != "" && $typeid != "")) {
+		$sep = "AND";
+	}
+	$prms = array();
+	$disttbl = '';
+	$distwhere = '';
+	if($distid != "All" && $distid != "") {
+		$disttbl = "LEFT JOIN {field_data_field_districts} field_data_field_districts ON node.nid = field_data_field_districts.entity_id AND (field_data_field_districts.entity_type = 'node' AND field_data_field_districts.deleted = '0')";
+		$distwhere = "(field_data_field_districts.field_districts_tid = ".$distid." )";
+		$prms[':distid'] = $distid;
+		$sep1 = "AND";
+	}
+	$typetbl = '';
+	$typewhere = '';
+	if($typeid != "All" && $typeid != "") {
+		$typetbl = "LEFT JOIN {field_data_field_hospital_type} field_data_field_hospital_type ON node.nid = field_data_field_hospital_type.entity_id AND (field_data_field_hospital_type.entity_type = 'node' AND field_data_field_hospital_type.deleted = '0')";
+		$typewhere = "(field_data_field_hospital_type.field_hospital_type_tid = ".$typeid." )";
+		$prms[':typeid'] = $typeid;
+		$sep1 = "AND";
+	}
+	//p($prms);
+	//print $typeid;
+	$result = db_query("SELECT node.title AS node_title, node.nid AS nid, node.language AS node_language, node.created AS node_created
+						FROM 
+						{node} node
+						".$disttbl."
+						".$typetbl."
+						WHERE (
+						".$distwhere."
+						".$sep." 
+						".$typewhere."
+						 ".$sep1." (( (node.status = '1') AND (node.type IN  ('hospitals')) )))
+						ORDER BY node_created DESC");
+	$rtnarray = array();					
+	foreach ($result as $record) {
+		//p($record);
+		//$rtnarray['Value'] = $record->nid;
+		$rtnarray[$record->nid] = $record->node_title;
+	  // Perform operations on $record->title, etc. here.
+	  // in this example the available data would be mapped to object properties:
+	  // $record->nid, $record->title, $record->created
+	}
+	print json_encode($rtnarray);
+}

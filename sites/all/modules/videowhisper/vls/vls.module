@@ -1,0 +1,2836 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * Live Streaming Integration Module
+ */
+
+/*******************************************************************************
+ * Hook Functions (Drupal)
+ ******************************************************************************/
+
+/**
+ * Display help and module information
+ *
+ * @param path which path of the site we're displaying help
+ * @param arg array that holds the current path as would be returned from arg() function
+ *
+ * @return help text for the path
+ */
+function vls_help($path, $arg) {
+  switch ($path) {
+    case "admin/help/vls":
+      $output = '<p>' . t("Live Streaming Script integration module details, installation instructions, updates") . ': <a href="http://www.videowhisper.com/?p=Drupal+Live+Video+Streaming+Module">http://www.videowhisper.com/?p=Drupal+Live+Video+Streaming+Module</a></p>';
+      break;
+  }
+  return $output;
+}
+// function vls_help
+
+/**
+ * Valid permissions for this module
+ *
+ * @return array An array of valid permissions for the vls_module module
+ */
+function vls_permission() {
+  return array(
+    'administer live streaming' => array(
+      'title' => t('administer live streaming'),
+      'description' => t('administer live streaming'),
+    ),
+    'create live streaming channel' => array(
+      'title' => t('create live streaming channel'),
+      'description' => t('create live streaming channel'),
+    ),
+    'edit live streaming channel' => array(
+      'title' => t('edit live streaming channel'),
+      'description' => t('edit live streaming channel'),
+    ),
+    'delete live streaming channel' => array(
+      'title' => t('delete live streaming channel'),
+      'description' => t('delete live streaming channel'),
+    ),
+    'edit any live streaming channel' => array(
+      'title' => t('edit any live streaming channel'),
+      'description' => t('edit any live streaming channel'),
+    ),
+    'delete any live streaming channel' => array(
+      'title' => t('delete any live streaming channel'),
+      'description' => t('delete any live streaming channel'),
+    ),
+    'access the watch channel' => array(
+      'title' => t('access the watch channel'),
+      'description' => t('access the watch channel'),
+    ),
+    'access the video channel' => array(
+      'title' => t('access the video channel'),
+      'description' => t('access the video channel'),
+    ),
+    'access the broadcast channel' => array(
+      'title' => t('access the broadcast channel'),
+      'description' => t('access the broadcast channel'),
+    ),
+    'edit welcome of broadcasting settings' => array(
+      'title' => t('edit welcome of broadcasting settings'),
+      'description' => t('edit welcome of broadcasting settings'),
+    ),
+    'edit welcome of watch/video settings' => array(
+      'title' => t('edit welcome of watch/video settings'),
+      'description' => t('edit welcome of watch/video settings'),
+    ),
+    'edit bandwidth' => array(
+      'title' => t('edit bandwidth'),
+      'description' => t('edit bandwidth'),
+    ),
+    'edit maxbandwidth' => array(
+      'title' => t('edit maxbandwidth'),
+      'description' => t('edit maxbandwidth'),
+    ),
+    'edit floodprotection of broadcasting settings' => array(
+      'title' => t('edit floodprotection of broadcasting settings'),
+      'description' => t('edit floodprotection of broadcasting settings'),
+    ),
+    'edit floodprotection of watch/video settings' => array(
+      'title' => t('edit floodprotection of watch/video settings'),
+      'description' => t('edit floodprotection of watch/video settings'),
+    ),
+    'edit room_limit' => array(
+      'title' => t('edit room_limit'),
+      'description' => t('edit room_limit'),
+    ),
+    'edit labelcolor' => array(
+      'title' => t('edit labelcolor'),
+      'description' => t('edit labelcolor'),
+    ),
+    'edit fillwindow' => array(
+      'title' => t('edit fillwindow'),
+      'description' => t('edit fillwindow'),
+    ),
+    'edit layoutcode' => array(
+      'title' => t('edit layoutcode'),
+      'description' => t('edit layoutcode'),
+    ),
+    'edit offlinemessage' => array(
+      'title' => t('edit offlinemessage'),
+      'description' => t('edit offlinemessage'),
+    ),
+    'edit showtimer' => array(
+      'title' => t('edit showtimer'),
+      'description' => t('edit showtimer'),
+    ),
+    'edit onlyvideo' => array(
+      'title' => t('edit onlyvideo'),
+      'description' => t('edit onlyvideo'),
+    ),
+    'edit noembeds' => array(
+      'title' => t('edit noembeds'),
+      'description' => t('edit noembeds'),
+    ),
+    'edit filterregex' => array(
+      'title' => t('edit filterregex'),
+      'description' => t('edit filterregex'),
+    ),
+    'edit filterreplace' => array(
+      'title' => t('edit filterreplace'),
+      'description' => t('edit filterreplace'),
+    ),
+    'edit micrate' => array(
+      'title' => t('edit micrate'),
+      'description' => t('edit micrate'),
+    ),
+    'edit camfps' => array(
+      'title' => t('edit camfps'),
+      'description' => t('edit camfps'),
+    ),
+    'edit camheight' => array(
+      'title' => t('edit camheight'),
+      'description' => t('edit camheight'),
+    ),
+    'edit camwidth' => array(
+      'title' => t('edit camwidth'),
+      'description' => t('edit camwidth'),
+    ),
+    'edit credits' => array(
+      'title' => t('edit credits'),
+      'description' => t('edit credits'),
+    ),
+    'edit cleanup' => array(
+      'title' => t('edit cleanup'),
+      'description' => t('edit cleanup'),
+    ),
+    'edit availability' => array(
+      'title' => t('edit availability'),
+      'description' => t('edit availability'),
+    ),
+    'use enabledchat' => array(
+      'title' => t('use enabledchat'),
+      'description' => t('use enabledchat'),
+    ),
+    'edit enabledchat' => array(
+      'title' => t('edit enabledchat'),
+      'description' => t('edit enabledchat'),
+    ),
+    'use enabledvideo' => array(
+      'title' => t('use enabledvideo'),
+      'description' => t('use enabledvideo'),
+    ),
+    'edit enabledvideo' => array(
+      'title' => t('edit enabledvideo'),
+      'description' => t('edit enabledvideo'),
+    ),
+    'use enabledusers' => array(
+      'title' => t('use enabledusers'),
+      'description' => t('use enabledusers'),
+    ),
+    'edit enabledusers' => array(
+      'title' => t('edit enabledusers'),
+      'description' => t('edit enabledusers'),
+    ),
+    'use configuresource' => array(
+      'title' => t('use configuresource'),
+      'description' => t('use configuresource'),
+    ),
+    'edit configuresource' => array(
+      'title' => t('edit configuresource'),
+      'description' => t('edit configuresource'),
+    ),
+    'use write_text' => array(
+      'title' => t('use write_text'),
+      'description' => t('use write_text'),
+    ),
+    'edit write_text' => array(
+      'title' => t('edit write_text'),
+      'description' => t('edit write_text'),
+    ),
+    'use write_text2' => array(
+      'title' => t('use write_text2'),
+      'description' => t('use write_text2'),
+    ),
+    'edit write_text2' => array(
+      'title' => t('edit write_text2'),
+      'description' => t('edit write_text2'),
+    ),
+    'use advancedcamsettings' => array(
+      'title' => t('use advancedcamsettings'),
+      'description' => t('use advancedcamsettings'),
+    ),
+    'edit advancedcamsettings' => array(
+      'title' => t('edit advancedcamsettings'),
+      'description' => t('edit advancedcamsettings'),
+    ),
+    'edit instantaccess' => array(
+      'title' => t('edit instantaccess'),
+      'description' => t('edit instantaccess'),
+    ),
+    'edit ads' => array(
+      'title' => t('edit ads'),
+      'description' => t('edit ads'),
+    ),
+  );
+}
+
+/**
+ * Menu for this module
+ *
+ * @return array An array with this module's menus.
+ */
+function vls_menu() {
+  $items = array();
+  $items['admin/config/videowhisper/vls'] = array(
+    'title' => 'Live Streaming',
+    'description' => 'Live Streaming admin interface.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('vls_admin'),
+    'access arguments' => array('administer live streaming'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  $items['myvls'] = array(
+    'title' => 'Live Channels',
+    'description' => 'My Live Streaming channels.',
+    'page callback' => 'vls_roomlist',
+    'access arguments' => array('edit live streaming channel'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  $items['vls/livebc'] = array('type' => MENU_CALLBACK, 'page callback' => 'vls_livebc', 'access arguments' => array('access content'));
+  $items['vls/livevv'] = array('type' => MENU_CALLBACK, 'page callback' => 'vls_livevv', 'access arguments' => array('access content'));
+  $items['vls/livew'] = array('type' => MENU_CALLBACK, 'page callback' => 'vls_livew', 'access arguments' => array('access content'));
+
+  return $items;
+}
+
+
+
+/**
+ * Room list page
+ *
+ * @return page contents.
+ */
+function vls_roomlist() {
+  global $user;
+  vls_cleanup();
+
+  $a = array();
+  $a['d'] = $user->uid;
+$df="ORDER BY r.timelastaccess DESC ";
+  $sql = "SELECT r.room, n.title, n.nid,t.thumb FROM {vls_rooms} r left join  {node} as  n on(n.nid=r.nid) left join {vwrooms_thumb} t on(t.nid=r.nid)  WHERE n.uid=:d  ";
+  $csql = "SELECT count(*) FROM {vls_rooms} r  left join  {node}  n on (n.nid=r.nid)   WHERE n.uid=:d  ";
+
+  $q = vwrooms_pager_query("SELECT r.room, n.title, n.nid,t.thumb FROM {vls_rooms} r left join  {node} as  n on(n.nid=r.nid) left join {vwrooms_thumb} t on(t.nid=r.nid)  WHERE n.uid=:d  ", $csql, $a,$h,$limit,$df);
+
+
+  $data = array();
+  while ($row = $q->fetchAssoc()) {
+    $r = array();
+    $options = array("attributes" => array("title" => $row->room, 'target' => '_blank'));
+   $r['type']='vls';
+   $r['room']=$row['room'];
+   $r['rid']=$row['nid'];
+    $r['link'] = l("$row[title] ($row[room])", "node/$row[nid]", $options);
+    $r['thumb'] = $row['thumb'];
+
+    $data[] = $r;
+  }
+
+
+
+
+  /// $page_content .= "<BR><h3>$link</h3>";
+  return theme('room_list', array('data' => $data, 'text' => "Create New VideoWhisper Channel", 'type' => "vls")) . vwrooms_pager();
+}
+
+/**
+ * Room login form
+ *
+ * @return form an array of form data.
+ */
+function vls_start_form($form, &$form_state, $node) {
+  if (user_access('access the broadcast channel', $account)) {
+    global $base_url, $user;
+    ///  $url = $base_url . variable_get('vls_path', "/vls/") . "live_broadcast.php";
+
+    $url = url("vls/livebc");
+    $form['r'] = array('#type' => 'hidden', '#value' => check_plain($node->room));
+
+    $form['#action']     = $url;
+    $form['#attributes'] = array('enctype' => "multipart/form-data", "target" => "_new1");
+    $form['submit']      = array(
+    '#type' => 'submit',
+    '#value' => t('Broadcast Video'),
+  );
+  }
+  return $form;
+}
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vls_start_form2($form, &$form_state, $node) {
+  if (user_access('access the watch channel', $account)) {
+    global $base_url, $user;
+    $url = url("vls/livebw");
+
+    if (user_access('vwrooms own name')) {
+
+      $form['username'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Username'),
+    '#default_value' => ($user->name ? $user->name : "Guest"),
+    '#size' => 24,
+    '#maxlength' => 64,
+    '#description' => t("Username as you want it displayed within the chat."),
+  );
+    }
+    else {
+      $form['un'] = array('#type' => 'markup', '#value' => $user->name ? $user->name : "Guest");
+
+      $form['username'] = array(
+    '#type' => 'hidden',
+    '#value' => ($user->name ? $user->name : "Guest"));
+
+
+    }
+    $form['r'] = array('#type' => 'hidden', '#value' => check_plain($node->room));
+
+    $form['#action']     = url('vls/livew');
+
+    $form['#attributes'] = array('enctype' => "multipart/form-data", 'target' => '_new2');
+    $form['submit']      = array(
+    '#type' => 'submit',
+    '#value' => t('Watch channel'),
+  );
+  }
+  return $form;
+}
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vls_start_form3($form, &$form_state, $node) {
+  if (user_access('access the video channel', $account)) {
+    global $base_url, $user;
+    $url = url("vls/livevv");
+    $form['r'] = array('#type' => 'hidden', '#value' => check_plain($node->room));
+    $form['#action']     = url('vls/livevv');
+    $form['#attributes'] = array('enctype' => "multipart/form-data", 'target' => '_new');
+    $form['submit']      = array(
+    '#type' => 'submit',
+    '#value' => t('Only Video'),
+    '#description' => t("Open only video, without chat or participants list."),
+  );
+  }
+  return $form;
+}
+/**
+ * Rooms cleanup
+ */
+function vls_cleanup() {
+  //cleanup
+}
+
+/**
+ * Admin page
+ *
+ * @return page contents.
+ */
+function vls_admin($form, &$form_state) {
+  $form = array();
+  $form['vls_rtmp3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('RTMP application address'),
+    '#default_value' => variable_get('vls_rtmp3', "rtmp://server-domain-or-ip/videowhisper"),
+    '#size' => 48,
+    '#maxlength' => 255,
+    '#description' => t('RTMP application address on a rtmp server. See <a href="http://www.videowhisper.com/?p=Requirements" target="_blank">Requirements</a> if you need more details about this.'),
+    '#required' => TRUE,
+  );
+
+  if (module_exists('vwcredits')) {
+
+
+
+
+    $form['vls_paidrtmp3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('RTMP application address for Paid Rooms'),
+    '#default_value' => variable_get('vls_paidrtmp3', ""),
+    '#size' => 48,
+    '#maxlength' => 255,
+    '#description' => t('Separate RTMP application address on a rtmp server for paid rooms. Leave blank to use the same.'),
+    '#required' => false,
+  );
+
+
+
+  }
+
+
+  $form['vls_amf3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('RTMP AMF'),
+    '#default_value' => variable_get('vls_amf3', "AMF3"),
+    '#size' => 48,
+    '#maxlength' => 10,
+    '#description' => t("RTMP AMF (AMF3 : Red5, Wowza, FMIS3, FMIS3.5)"),
+    '#required' => TRUE,
+  );
+
+  $form['vls_rtmfp'] = array(
+      '#type' => 'textfield',
+      '#title' => t('RTMFP application address'),
+      '#default_value' => variable_get('vls_rtmfp', "rtmfp://stratus.adobe.com/f1533cc06e4de4b56399b10d-1a624022ff71/"),
+      '#size' => 48,
+      '#maxlength' => 255,
+      '#description' => t('RTMFP application address on a rtmp server. See <a href="http://www.videowhisper.com/?p=Requirements" target="_blank">Requirements</a> if you need more details about this.'),
+      '#required' => TRUE,
+  );
+  $form['vls_sgroup'] = array(
+        '#type' => 'textfield',
+        '#title' => t('ServerGroup'),
+        '#default_value' => variable_get('vls_sgroup', "VideoWhisper"),
+        '#size' => 48,
+        '#maxlength' => 255,
+        '#description' => t('Server Group.'),
+        '#required' => TRUE,
+  );
+
+
+
+
+  $form['vls_room_prefix3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Default channel name'),
+    '#default_value' => variable_get('vls_room_prefix3', "InstantChannel"),
+    '#size' => 24,
+    '#maxlength' => 48,
+    '#description' => t("Default channel name. A hash code is added if not changed by channel creator."),
+    '#required' => TRUE,
+  );
+
+  $found = "";$ff=false;
+  $path = variable_get('vls_path', "/" . drupal_get_path("module", "vls") . "/" . "vls" . "/");
+  if (file_exists("." . $path) && $path) {
+    $found = t('Application folder detected: ') . $path;
+$ff=true;
+  }
+  else {
+    $found = t('Please <a target="_blank" href="@url-download">download Live Streaming application</a>. Application folder NOT detected: %path', array('@url-download' => 'http://www.videowhisper.com/?p=PHP+Live+Streaming', '%path' => $path));
+  }
+  $form['vls_path'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Live Streaming path'),
+
+    '#default_value' => variable_get('vls_path', "/" . drupal_get_path("module", "vls") . "/" . "vls" . "/"),
+    '#size' => 50,
+  '#disabled'=>$ff,
+
+    '#description' => t("Path for the VideoWhisper Live Streaming application folder.") . " " . $found,
+    '#required' => false,
+  );
+
+  $form['vls_tokenkey3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('tokenkey'),
+    '#default_value' => variable_get('vls_tokenkey3', "VideoWhisper"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set tokenkey parameters."),
+    '#required' => TRUE,
+  );
+
+  $form['vls_cammaxbandwidth3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('camMaxBandwidth'),
+    '#default_value' => variable_get('vls_cammaxbandwidth3', "81920"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set camMaxBandwidth parameters."),
+    '#required' => TRUE,
+  );
+
+  $form['vls_bufferlive3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('bufferLive'),
+    '#default_value' => variable_get('vls_bufferlive3', "2"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set bufferLive of broadcasting setting parameter."),
+    '#required' => TRUE,
+  );
+
+  $form['vls_bufferfull3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('bufferFull'),
+    '#default_value' => variable_get('vls_bufferfull3', "16"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set bufferFull of broadcasting setting parameter."),
+    '#required' => TRUE,
+  );
+
+  $form['vls_bufferlive4'] = array(
+    '#type' => 'textfield',
+    '#title' => t('bufferLive'),
+    '#default_value' => variable_get('vls_bufferlive4', "0.5"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set bufferLive of watch/video setting parameter."),
+    '#required' => TRUE,
+  );
+
+  $form['vls_bufferfull4'] = array(
+    '#type' => 'textfield',
+    '#title' => t('bufferFull'),
+    '#default_value' => variable_get('vls_bufferfull4', "16"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set bufferFull of watch/video setting parameter."),
+    '#required' => TRUE,
+  );
+
+  $form['vls_disablebandwidthdetection3'] = array(
+    '#type' => 'radios',
+    '#title' => t('disableBandwidthDetection'),
+    '#default_value' => variable_get('vls_disablebandwidthdetection3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set disableBandwidthDetection parameters'),
+  );
+
+  $form['vls_limitbybandwidth3'] = array(
+    '#type' => 'radios',
+    '#title' => t('limitBybandwidth'),
+    '#default_value' => variable_get('vls_limitbybandwidth3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set limitBybandwidth parameters'),
+  );
+
+  $form['vls_fillwindow3'] = array(
+    '#type' => 'radios',
+    '#title' => t('fillwindow'),
+    '#default_value' => variable_get('vls_fillwindow3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set fillwindow parameters'),
+  );
+
+  $form['vls_room_limit3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('room_limit'),
+    '#default_value' => variable_get('vls_room_limit3', "100"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set room_limit parameters."),
+    '#required' => TRUE,
+  );
+
+  $form['vls_floodprotection3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('floodprotection'),
+    '#default_value' => variable_get('vls_floodprotection3', "3"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set floodprotection of broadcast setting parameter."),
+    '#required' => TRUE,
+  );
+
+  $form['vls_floodprotection4'] = array(
+    '#type' => 'textfield',
+    '#title' => t('floodprotection'),
+    '#default_value' => variable_get('vls_floodprotection4', "3"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set floodprotection of watch/video setting parameter."),
+    '#required' => TRUE,
+  );
+
+  $form['vls_generatesnapshots3'] = array(
+    '#type' => 'radios',
+    '#title' => t('generateSnapshots'),
+    '#default_value' => variable_get('vls_generatesnapshots3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set generateSnapshots parameters'),
+  );
+
+  $form['vls_snapshotstime3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('snapshotsTime'),
+    '#default_value' => variable_get('vls_snapshotstime3', "60000"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set snapshotsTime parameters."),
+  );
+
+  $form['vls_layoutcode3'] = array(
+    '#type' => 'textarea',
+    '#title' => t('layoutcode'),
+    '#default_value' => variable_get('vls_layoutcode3', ""),
+	'#cols' => 48,
+	'#rows' => 3,
+    '#description' => t("Set layoutcode parameters."),
+  );
+
+
+  $form['vls_labelcolor3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('labelcolor'),
+    '#default_value' => variable_get('vls_labelcolor3', "FFFFFF"),
+    '#size' => 7,
+    '#maxlength' => 8,
+    '#description' => t("Set labelcolor parameters."),
+  );
+
+  $form['vls_welcome'] = array(
+    '#type' => 'textfield',
+    '#title' => t('offlinemessage'),
+    '#default_value' => variable_get('vls_welcome', "Welcome!"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set Welcome Message."),
+  );
+
+
+
+  $form['vls_offlinemessage3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('offlinemessage'),
+    '#default_value' => variable_get('vls_offlinemessage3', "Channel Offline"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set offline message ."),
+  );
+
+  $form['vls_showtimer3'] = array(
+    '#type' => 'radios',
+    '#title' => t('showtimer'),
+    '#default_value' => variable_get('vls_showtimer3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set showtimer parameters'),
+  );
+
+  $form['vls_onlyvideo3'] = array(
+    '#type' => 'radios',
+    '#title' => t('onlyvideo'),
+    '#default_value' => variable_get('vls_onlyvideo3', 0),
+    '#options' => array('0'=>t('No'),'1'=> t('Yes')),
+    '#description' => t('Set onlyvideo parameters'),
+  );
+
+  $form['vls_noembeds3'] = array(
+    '#type' => 'radios',
+    '#title' => t('noembeds'),
+    '#default_value' => variable_get('vls_noembeds3', 0),
+    '#options' => array('0'=>t('No'), '1'=>t('Yes')),
+    '#description' => t('Set noembeds parameters'),
+  );
+
+  $form['vls_enabledchat3'] = array(
+    '#type' => 'radios',
+    '#title' => t('enabledchat'),
+    '#default_value' => variable_get('vls_enabledchat3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set enabledchat parameters'),
+  );
+
+  $form['vls_enabledvideo3'] = array(
+    '#type' => 'radios',
+    '#title' => t('enabledvideo'),
+    '#default_value' => variable_get('vls_enabledvideo3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set enabledvideo parameters'),
+  );
+
+  $form['vls_enabledusers3'] = array(
+    '#type' => 'radios',
+    '#title' => t('enabledusers'),
+    '#default_value' => variable_get('vls_enabledusers3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set enabledusers parameters'),
+  );
+
+  $form['vls_write_text3'] = array(
+    '#type' => 'radios',
+    '#title' => t('write_text'),
+    '#default_value' => variable_get('vls_write_text3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set write_text broadcast parameters'),
+  );
+
+  $form['vls_write_text4'] = array(
+    '#type' => 'radios',
+    '#title' => t('write_text'),
+    '#default_value' => variable_get('vls_write_text4', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set write_text watch/video parameters'),
+  );
+
+/*
+  $form['vls_disablevideo'] = array(
+    '#type' => 'radios',
+    '#title' => t('Disable Video'),
+    '#default_value' => variable_get('vls_disablevideo', 0),
+    '#options' => array(t('No'), t('Yes')),
+  );
+  $form['vls_disablechat'] = array(
+    '#type' => 'radios',
+    '#title' => t('Disable Chat'),
+    '#default_value' => variable_get('vls_disablechat', 0),
+    '#options' => array(t('No'), t('Yes')),
+  );
+
+
+  $form['vls_disableusers'] = array(
+    '#type' => 'radios',
+    '#title' => t('Disable Users'),
+    '#default_value' => variable_get('vls_disableusers', 0),
+    '#options' => array(t('No'), t('Yes')),
+  );
+*/
+
+
+
+  $form['vls_configuresource3'] = array(
+    '#type' => 'radios',
+    '#title' => t('configureSource'),
+    '#default_value' => variable_get('vls_configuresource3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set configureSource parameters'),
+  );
+
+  $form['vls_advancedcamsettings3'] = array(
+    '#type' => 'radios',
+    '#title' => t('advancedcamsettings'),
+    '#default_value' => variable_get('vls_advancedcamsettings3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set advancedcamsettings parameters'),
+  );
+  $form['vls_showcamsettings3'] = array(
+    '#type' => 'radios',
+    '#title' => t('showcamsettings'),
+    '#default_value' => variable_get('vls_showcamsettings3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set showcamsettings'),
+  );
+
+
+  $form['vls_adserver'] = array(
+  '#type' => 'textfield', '#default_value' => variable_get('vls_adserver', ''),
+  '#title' => t('Ad Server'),
+  '#description' => t('Ad management server.'),
+
+  );
+  $form['vls_adtimeout'] = array(
+  '#type' => 'textfield', '#default_value' => variable_get('vls_adtimeout', '15000'),
+  '#title' => t('Ad Timeout(milliseconds)'),
+
+  );
+
+  $form['vls_adinterval'] = array(
+  '#type' => 'textfield', '#default_value' => variable_get('vls_adinterval', '240000'),
+  '#title' => t('Ad Interval(milliseconds)'),
+
+  );
+
+  $form['vls_status'] = array(
+  '#type' => 'textfield', '#default_value' => variable_get('vls_status', '20000'),
+  '#title' => t('Status Interval(milliseconds)'),
+
+  );
+
+
+  $form['vls_external'] = array(
+  '#type' => 'textfield', '#default_value' => variable_get('vls_external', '20000'),
+  '#title' => t('External Chat Interval'),
+   '#description' => t('in milliseconds. Set 0 or any number lower than 500 to disable.
+Many of these parameters are also working with vv_login.php and vs_login.php for watch and video interfaces')
+  );
+
+
+
+  $form['fre'] = array('#type' => 'fieldset', '#title' => module_exists('vwcredits')? t('Free mode settings'):t('Additional Settings'), '#collapsible' => true, '#collapsed' => true, '#tree' => false);
+  $options = implode(",", array("320x240" => "320x240", "160x120" => "160x120", "176x144" => "176x144"));
+
+  $form['fre']['vls_defaultresolution'] = array(
+      '#type' => 'textfield', '#default_value' => variable_get('vls_defaultresolution', $options),
+      '#title' => t('Resolutions'),
+      '#description' => t('Comma separated camera resoluton  list: 320X240,160X120,176X144,352X288,640X480 *'),
+
+    );
+
+  $form['fre']['vls_defaultresolutiond'] = array(
+        '#type' => 'textfield', '#default_value' => variable_get('vls_defaultresolutiond', '176x144'),
+        '#title' => t('Default Resolution'),
+    	'#options' => array("320x240" => "320x240", "160x120" => "160x120", "176x144" => "176x144"),
+    );
+
+
+  $options = implode(",", array("15" => "15", "10" => "10", "12" => "12", "20" => "20"));
+
+  $form['fre']['vls_defaultcamfps'] = array(
+        '#type' => 'textfield', '#default_value' => variable_get('vls_defaultcamfps', $options),
+        '#title' => t('Camera FPS'),
+        '#description' => t('Comma separated camera frames per second list list :15,10,12,20,25,30 *'),
+
+    );
+
+  $form['fre']['vls_defaultcamfpsd'] = array(
+          '#type' => 'textfield', '#default_value' => variable_get('vls_defaultcamfpsd', '20'),
+          	'#options' => array("15" => "15", "10" => "10", "12" => "12", "20" => "20"),
+          '#title' => t('Default Camera FPS'),
+
+    );
+
+  $options = implode(",", array("22" => "22", "11" => "11"));
+
+
+  $form['fre']['vls_defaultmicrate'] = array(
+        '#type' => 'textfield', '#default_value' => variable_get('vls_defaultmicrate', $options),
+        '#title' => t('Micrates'),
+        '#description' => t('Comma separated  list : 22,11,44,48 *'),
+
+    );
+
+  $form['fre']['vls_defaultmicrated'] = array(
+          '#type' => 'textfield', '#default_value' => variable_get('vls_defaultmicrated', '22'),
+          '#title' => t('Default Micrate'),
+          '#options' => array("22" => "22", "11" => "11"),
+
+    );
+
+
+
+  $form['fre']['vls_defaultbandwidth'] = array(
+      '#type' => 'textfield', '#default_value' => variable_get('vls_defaultbandwidth', '50000'),
+      '#title' => t('Bandwidth'),
+        '#description' => t("Default bandwidth per video stream in bytes per second. "),
+      '#size' => '6',
+      '#maxlength' => 8,
+
+    );
+
+  $form['fre']['vls_defaultmaxbandwidth'] = array(
+      '#type' => 'textfield', '#default_value' => variable_get('vls_defaultmaxbandwidth', '100000'),
+      '#title' => t('Max Bandwidth'),
+        '#description' => t("Maximum bandwidth per video stream in bytes per second."),
+       '#size' => '6',
+        '#maxlength' => 8,
+    );
+
+
+
+
+  if (module_exists('vwcredits')) {
+
+    $form['paid'] = array('#type' => 'fieldset', '#collapsible' => true, '#collapsed' => true, '#title' => t('Paid mode Settings'));
+
+    $options = implode(",", array("320x240" => "320x240", "160x120" => "160x120", "176x144" => "176x144", '352x288' => '352x288', '640x480' => '640x480' ));
+
+    $form[paid]['vls_paidresolution'] = array(
+      	  '#type' => 'textfield', '#default_value' => variable_get('vls_paidresolution', $options),
+      	  '#title' => t('Resolutions'),
+      	  '#description' => t('Comma separated camera resolution list for paid rooms *'),
+      	  	'#size' => '60',
+      	  '#maxlength' => 80,
+
+    	);
+
+    $form[paid]['vls_paidresolutiond'] = array(
+      	  	  '#type' => 'textfield', '#default_value' => variable_get('vls_paidresolutiond', '640x480'),
+      	  	  '#title' => t('Default Resolution'),
+      	  	  	'#options' => array("320x240" => "320x240", "160x120" => "160x120", "176x144" => "176x144", '352x288' => '352x288', '640x480' => '640x480' ),
+      	  	  '#maxlength' => 80,
+
+    	);
+
+
+    $options = implode(",", array("15" => "15", "10" => "10", "12" => "12", "20" => "20", "25" => "25", "30" => "30"));
+
+
+
+
+    $form['paid']['vls_paidcamfps'] = array(
+        '#type' => 'textfield', '#default_value' => variable_get('vls_paidcamfps', $options),
+        '#title' => t('Camera FPS'),
+        '#description' => t('Comma separated camera frames per second list for paid rooms *'),
+         	'#size' => '60',
+        '#maxlength' => 80,
+
+    	);
+
+    $form['paid']['vls_paidcamfpsd'] = array(
+        '#type' => 'textfield', '#default_value' => variable_get('vls_paidcamfpsd', '30'),
+        '#title' => t('Default Camera FPS'),
+        '#options' => array("15" => "15", "10" => "10", "12" => "12", "20" => "20", "25" => "25", "30" => "30"),
+        '#maxlength' => 80,
+
+    	);
+
+    $options = implode(",", array("22" => "22", "11" => "11", "44" => "44", "48" => "48"));
+
+    $form['paid']['vls_paidmicrate'] = array(
+        '#type' => 'textfield', '#default_value' => variable_get('vls_paidmicrate', $options),
+        '#title' => t('Micrates'),
+        '#description' => t('Comma separated  list of micrate for paid rooms *'),
+        	'#size' => '60',
+        '#maxlength' => 80,
+
+    	);
+
+
+    $form['paid']['vls_paidmicrated'] = array(
+      '#type' => 'textfield', '#default_value' => variable_get('vls_paidmicrated', '48'),
+      '#title' => t('Default Micrate'),
+      '#options' => array("22" => "22", "11" => "11", "44" => "44", "48" => "48"),
+          '#maxlength' => 80,
+
+    	);
+
+
+
+    $form['paid']['vls_paidbandwidth'] = array(
+        '#type' => 'textfield', '#default_value' => variable_get('vls_paidbandwidth', '70000'),
+        '#title' => t('Bandwidth'),
+        '#description' => t("Default bandwidth per video stream in bytes per second for paid rooms."),
+        	'#size' => '6',
+        '#maxlength' => 8,
+
+    	);
+    $form['paid']['vls_paidmaxbandwidth'] = array(
+        '#type' => 'textfield', '#default_value' => variable_get('vls_paidmaxbandwidth', '200000'),
+        '#title' => t('Max. Bandwidth'),
+        '#description' => t("Maximum bandwidth per video stream in bytes per second for paid rooms."),
+      	'#size' => '6',
+        '#maxlength' => 8,
+
+    	);
+
+
+  }
+
+
+
+  $form['#validate'][] = '_vls_settings_validate';
+
+
+  return system_settings_form($form);
+}
+
+
+function _vls_settings_validate($form, &$form_state) {
+
+  $v = &$form_state['values'];
+
+  $mic = explode(",", $v['vls_defaultmicrate']);
+  $options = array("22" => "22", "11" => "11", "44" => "44", "48" => "48");
+  foreach ($mic as $c) {
+    if (!in_array($c, $options)) {
+      form_set_error('vls_defaultmicrate', t('Invalid micrate'));
+    }
+  }
+
+
+
+  $campfs = explode(",", $v['vls_defaultcamfps']);
+  $options = array("15" => "15", "10" => "10", "12" => "12", "20" => "20", "25" => "25", "30" => "30");
+
+
+  foreach ($campfs as $c) {
+    if (!in_array($c, $options)) {
+      form_set_error('vls_defaultcamfps', t('Invalid campfps'));
+    }
+  }
+
+
+
+  $rs = explode(",", $v['vls_defaultresolution']);
+  $options = array("320x240" => "320x240", "160x120" => "160x120", "176x144" => "176x144", "352x288" => "352x288", "640x480" => "640x480");
+
+  foreach ($rs as $c) {
+    if (!in_array($c, $options)) {
+      form_set_error('vls_defaultresolution', t('Invalid resolution'));
+    }
+  }
+
+if(module_exists('vwcredits')){
+
+  $options = array("15" => "15", "10" => "10", "12" => "12", "20" => "20", "25" => "25", "30" => "30");
+
+  $campfs = explode(",", $v['vls_paidcamfps']);
+  foreach ($campfs as $c) {
+  	if (!in_array($c, $options)) {
+  		form_set_error('vls_paidcamfps', t('Invalid camfps'));
+  	}
+  }
+
+  $options = array("320x240" => "320x240", "160x120" => "160x120", "176x144" => "176x144", "352x288" => "352x288", "640x480" => "640x480");
+  $rs = explode(",", $v['vls_paidresolution']);
+
+  foreach ($rs as $c) {
+    if (!in_array($c, $options)) {
+      form_set_error('vls_paidresolution', t('Invalid resolution'));
+    }
+  }
+
+  $mic = explode(",", $v['vls_paidmicrate']);
+  $options = array("22" => "22", "11" => "11", "44" => "44", "48" => "48");
+
+  foreach ($mic as $c) {
+  	if (!in_array($c, $options)) {
+  		form_set_error('vls_paidmicrate', t('Invalid micrate'));
+  	}
+  }
+
+}
+
+
+
+}
+
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vls_node_info() {
+  return array(
+    'vls' => array(
+      'name' => t('Live Streaming channel'),
+      'base' => 'vls',
+      'description' => t("A <i>channel</i> that can be used for customized Live Streaming."),
+      'has_title' => TRUE,
+      'title_label' => t('Live Streaming'),
+      'has_body' => TRUE,
+      'body_label' => t('Channel Description'),
+    ),
+  );
+}
+
+
+function vls_node_access($node, $op, $account) {
+
+  if ($op == 'access') {
+    return user_access('access live streaming room', $account);
+  }
+
+  if ($op == 'create') {
+    return user_access('create live streaming channel', $account);
+  }
+
+  if ($op == 'update') {
+    if (user_access('edit any live streaming channel', $account) || (user_access('edit live streaming channel', $account) && ($account->uid == $node->uid))) {
+      return TRUE;
+    }
+  }
+
+  if ($op == 'delete') {
+    if (user_access('delete any live streaming channel', $account) || (user_access('delete live streaming channel', $account) && ($account->uid == $node->uid))) {
+      return TRUE;
+    }
+  }
+}
+
+/**
+ * Implements hook_form().
+ */
+function vls_form(&$node) {
+  // The site admin can decide if this node type has a title and body, and how
+  // the fields should be labeled. We need to load these settings so we can
+  // build the node form correctly.
+  global $user; // this added by keeperprancis
+  $type = node_type_get_type($node);
+
+  if ($type->has_title) {
+    $form['title'] = array(
+      '#type' => 'textfield',
+      '#title' => check_plain($type->title_label),
+      '#required' => TRUE,
+      '#default_value' => $node->title,
+      '#weight' => -5,
+    );
+  }
+
+  if ($type->has_body) {
+    // In Drupal 6, we can use node_body_field() to get the body and filter
+    // elements. This replaces the old textarea + filter_form() method of
+    // setting this up. It will also ensure the teaser splitter gets set up
+    // properly.
+    node_add_body_field($type);
+  //  $label='Body';
+//    $form['body_field'] =
+  }
+
+  $form['room'] = array(
+    '#type' => 'textfield',
+    '#title' => t('New channel name'),
+    '#default_value' => isset($node->room) ? $node->room : variable_get('vls_room_prefix3', 'InstantChannel'),
+    '#size' => 32,
+    '#maxlength' => 64,
+    '#description' => t("Label that will be used to access the channel. Leave as it is to generate one."),
+  );
+
+
+  $form['users'] = array('#type' => 'textarea', '#title' => t('User list'), '#default_value' => $node->users, '#description' => t('Comma separated user names.'));
+
+
+  $form['advanced'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Advance live streaming settings'),
+    '#tree' => TRUE,
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+  );
+
+  if (user_access('edit room_limit', $user)) {
+    $form['advanced']['room_limit'] = array(
+		'#type' => 'textfield',
+		'#title' => t('room_limit'),
+		'#default_value' => isset($node->room_limit) ? $node->room_limit : variable_get('vls_room_limit3', "100"),
+		'#cols' => 32,
+		'#rows' => 2,
+		'#description' => t("Room limit."),
+	  );
+  }
+  else {
+    $form['advanced']['room_limit'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->room_limit) ? $node->room_limit : variable_get('vls_room_limit3', "100"),
+	  );
+  }
+
+  if (user_access('edit instantaccess', $user)) {
+    $options = array("1" => t('Yes'), "0" => t('No'));
+    $form['advanced']['visitors'] = array(
+			'#type' => 'select',
+			'#title' => t('Instant access'),
+			'#default_value' => isset($node->visitors) ? $node->visitors : "1",
+			'#options' => $options,
+			'#description' => t('Allow non registered users to access chat. If disabled, people will not be able to access chat instantly, without having and account and beeing logged in.'),
+		);
+  }
+  else {
+    $form['advanced']['visitors'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->visitors) ? $node->visitors : varialbe_get('vls_visitorsallowed', '')
+	  );
+  }
+
+  if (user_access('edit credits', $user)) {
+    $form['advanced']['credits'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Credits'),
+			'#default_value' => isset($node->credits) ? $node->credits : 0,
+			'#size' => 5,
+			'#maxlength' => 6,
+			'#description' => t("Maximum total number of streaming minutes this room can be used for. Usage of all users is added up (i.e. 2 users chatting for 10 minutes will require 20 credits). Leave 0 for unlimited usage time."),
+		);
+  }
+  else {
+    $form['advanced']['credits'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->credits) ? $node->credits : 0,
+	  );
+  }
+
+  if ($node->timeexpire > 0) {
+    $node->expire = floor(($node->timeexpire - REQUEST_TIME)  / 3600);
+  }
+
+  if (user_access('edit availability', $user)) {
+    $form['advanced']['expire'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Availability'),
+			'#default_value' => isset($node->expire) ? $node->expire : 0,
+			'#size' => 5,
+			'#maxlength' => 6,
+			'#description' => t("Number of hours this room will be accessible (i.e. 720 for 1 month). Leave 0 to make permanent room."),
+		);
+  }
+  else {
+    $form['advanced']['expire'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->expire) ? $node->expire : 0,
+	  );
+  }
+
+  $node->cleanup = floor($node->timeout / 3600);
+  if (user_access('edit cleanup', $user)) {
+    $form['advanced']['cleanup'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Cleanup'),
+			'#default_value' => isset($node->cleanup) ? $node->cleanup : 0,
+			'#size' => 5,
+			'#maxlength' => 6,
+			'#description' => t("If room is not used for this number of hours will be deleted. Leave 0 for no cleanup."),
+		);
+  }
+  else {
+    $form['advanced']['cleanup'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->cleanup) ? $node->cleanup : 0,
+	  );
+  }
+
+  ///  $form['advanced']['cnt']=array('#type'=>'markup','#prefix'=>'<div id="room-advanced-broadcasting-wrapper">','#suffix'=>'</div>','#tree'=>false);
+
+  $form['advanced']['cnt'] = array('#tree' => false, '#type' => 'markup', '#prefix' => '<div id="room-advanced-broadcasting-wrapper">', '#suffix' => '</div>');
+
+
+
+  $form['advanced']['cnt']['broadcasting'] = array(
+    '#type' => 'fieldset',
+  	 '#parents' => array('advanced', 'broadcasting'),
+    '#title' => t('Broadcasting'),
+    '#tree' => TRUE,
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+  );
+
+  if (user_access('edit welcome of broadcasting settings', $user)) {
+    $form['advanced']['cnt']['broadcasting']['welcome'] = array(
+		'#type' => 'textarea',
+		'#title' => t('Welcome message'),
+		'#default_value' => isset($node->welcome) ? $node->welcome : 'Welcome!',
+		'#cols' => 32,
+		'#rows' => 2,
+		'#description' => t("Welcome message displayed when entering room."),
+	  );
+  }
+  else {
+    $form['advanced']['cnt']['broadcasting']['welcome'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->welcome) ? $node->welcome : 'Welcome!',
+	  );
+  }
+
+  if (user_access('edit onlyvideo', $user)) {
+    $options = array("1" => t('Yes'), "0" => t('No'));
+    $form['advanced']['cnt']['broadcasting']['onlyvideo'] = array(
+			'#type' => 'select',
+			'#title' => t('Show only video panel'),
+			'#default_value' => isset($node->onlyvideo) ? (int)$node->onlyvideo : variable_get('vls_onlyvideo3', "0"),
+			'#options' => $options,
+			'#description' => t('onlyvideo.'),
+		);
+  }
+  else {
+    $form['advanced']['cnt']['broadcasting']['onlyvideo'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->onlyvideo) ? $node->onlyvideo : variable_get('vls_onlyvideo3', "0"),
+	  );
+  }
+
+  if (user_access('edit noembeds', $user)) {
+    $options = array("1" => t('Yes'), "0" => t('No'));
+    $form['advanced']['cnt']['broadcasting']['noembeds'] = array(
+			'#type' => 'select',
+			'#title' => t('hide embed codes'),
+			'#default_value' => isset($node->noembeds) ? $node->noembeds : variable_get('vls_noembeds3', "0"),
+			'#options' => $options,
+			'#description' => t('noembeds.'),
+		);
+  }
+  else {
+    $form['advanced']['cnt']['broadcasting']['noembeds'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->noembeds) ? $node->noembeds : variable_get('vls_noembeds3', "0"),
+	  );
+  }
+
+  if (user_access('edit showtimer', $user)) {
+    $options = array("1" => t('Yes'), "0" => t('No'));
+    $form['advanced']['cnt']['broadcasting']['showtimer'] = array(
+			'#type' => 'select',
+			'#title' => t('show timer'),
+			'#default_value' => isset($node->showtimer) ? $node->showtimer : variable_get('vls_showtimer3', "1"),
+			'#options' => $options,
+			'#description' => t('showtimer.'),
+		);
+  }
+  else {
+    $form['advanced']['cnt']['broadcasting']['showtimer'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->showtimer) ? $node->showtimer : variable_get('vls_showtimer3', "1"),
+	  );
+  }
+
+  if (user_access('edit floodprotection of broadcasting settings', $user)) {
+    $form['advanced']['cnt']['broadcasting']['floodprotection'] = array(
+		'#type' => 'textfield',
+		'#title' => t('floodprotection'),
+		'#default_value' => isset($node->floodprotection) ? $node->floodprotection : variable_get('vls_floodprotection3', "3"),
+		'#size' => 6,
+		'#maxlength' => 6,
+		'#description' => t("floodprotection."),
+	  );
+  }
+  else {
+    $form['advanced']['cnt']['broadcasting']['floodprotection'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->floodprotection) ? $node->floodprotection : variable_get('vls_floodprotection3', "3"),
+	  );
+  }
+
+  if (user_access('edit labelcolor', $user)) {
+    $form['advanced']['cnt']['broadcasting']['labelcolor'] = array(
+		'#type' => 'textfield',
+		'#title' => t('labelcolor'),
+		'#default_value' => isset($node->labelcolor) ? $node->labelcolor : variable_get('vls_labelcolor3', "FFFFFF"),
+		'#size' => 7,
+		'#maxlength' => 8,
+		'#description' => t("labelcolor."),
+	  );
+  }
+  else {
+    $form['advanced']['cnt']['broadcasting']['labelcolor'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->labelcolor) ? $node->labelcolor : variable_get('vls_labelcolor3', "FFFFFF"),
+	  );
+  }
+
+  $bo = _vls_broadcastoptions($node);
+
+  if (user_access('edit camwidth', $user) && user_access('edit camheight', $user)) {
+    $options = array("320x240" => "320x240", "160x120" => "160x120", "176x144" => "176x144", "352x288" => "352x288", "640x480" => "640x480");
+    $form['advanced']['cnt']['broadcasting']['resolution'] = array(
+			'#type' => 'select',
+			'#title' => t('Resolution'),
+			'#default_value' => $bo['resolution'][1],
+			'#options' => $bo['resolution'][0],
+    		'#attributes'=>array( 'class'=>array('changebroad','form-select')),
+			'#description' => t('Camera desired mode: resolution.'),
+		);
+  }
+  else {
+    $form['advanced']['cnt']['broadcasting']['resolution'] = array(
+		'#type' => 'hidden',
+		'#value' => $bo['resolution'][1],
+	  );
+  }
+
+  if (user_access('edit camfps', $user)) {
+    $options = array("15" => "15", "10" => "10", "12" => "12", "20" => "20", "25" => "25", "30" => "30");
+    $form['advanced']['cnt']['broadcasting']['camfps'] = array(
+			'#type' => 'select',
+			'#title' => t('FPS'),
+			'#default_value' => $bo['camfps'][1],
+			'#options' => $bo['camfps'][0],
+    		'#attributes'=>array( 'class'=>array('changebroad','form-select')),
+
+
+			'#description' => t('Camera desired  mode: frames per second.'),
+		);
+  }
+  else {
+    $form['advanced']['cnt']['broadcasting']['camfps'] = array(
+		'#type' => 'hidden',
+		'#value' => $bo['camfps'][1],
+	  );
+  }
+
+  if (user_access('edit micrate', $user)) {
+    $options = array("22" => "22", "11" => "11", "44" => "44", "48" => "48");
+    $form['advanced']['cnt']['broadcasting']['micrate'] = array(
+			'#type' => 'select',
+			'#title' => t('Micrate'),
+			'#default_value' => $bo['micrate'][1],
+			'#options' => $bo['micrate'][0],
+    		'#attributes'=>array( 'class'=>array('changebroad','form-select')),
+
+			'#description' => t('Camera desired  mode: micrate.'),
+		);
+  }
+  else {
+    $form['advanced']['cnt']['broadcasting']['micrate'] = array(
+		'#type' => 'hidden',
+		'#value' => $bo['micrate'][1],
+	  );
+  }
+
+  if (user_access('edit bandwidth', $user)) {
+    $form['advanced']['cnt']['broadcasting']['bandwidth'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Bandwidth'),
+		'#default_value' => $bo['bandwidth'],
+		'#size' => 6,
+		'#maxlength' => 8,
+		'#description' => t("Default bandwidth per video stream in bytes per second."),
+	  );
+  }
+  else {
+    $form['advanced']['cnt']['broadcasting']['bandwidth'] = array(
+		'#type' => 'hidden',
+		'#value' => $bo['bandwidth'],
+	  );
+  }
+
+  if (user_access('edit maxbandwidth', $user)) {
+    $form['advanced']['cnt']['broadcasting']['maxbandwidth'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Maximum bandwidth'),
+		'#default_value' => $bo['maxbandwidth'],
+		'#size' => 6,
+		'#maxlength' => 8,
+		'#description' => t("Maximum bandwidth per video stream in bytes per second."),
+	  );
+  }
+  else {
+    $form['advanced']['cnt']['broadcasting']['maxbandwidth'] = array(
+		'#type' => 'hidden',
+		'#value' => $bo['maxbandwidth'],
+	  );
+  }
+
+  $form['advanced']['watch'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Watch / Video'),
+    '#tree' => TRUE,
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+  );
+
+  if (user_access('edit welcome of watch/video settings', $user)) {
+    $form['advanced']['watch']['welcome'] = array(
+		'#type' => 'textarea',
+		'#title' => t('Welcome message'),
+		'#default_value' => isset($node->welcome) ? $node->welcome : 'Welcome!',
+		'#cols' => 32,
+		'#rows' => 2,
+		'#description' => t("Welcome message displayed when entering room."),
+	  );
+  }
+  else {
+    $form['advanced']['watch']['welcome'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->welcome) ? $node->welcome : 'Welcome!',
+	  );
+  }
+
+  if (user_access('edit offlinemessage', $user)) {
+    $form['advanced']['watch']['offlinemessage'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Offline message'),
+		'#default_value' => isset($node->offlinemessage) ? $node->offlinemessage : variable_get('vls_offlinemessage3', "Channel+Offline"),
+		'#size' => 10,
+		'#maxlength' => 255,
+		'#description' => t("Offline message."),
+	  );
+  }
+  else {
+    $form['advanced']['watch']['offlinemessage'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->offlinemessage) ? $node->offlinemessage : variable_get('vls_offlinemessage3', "Channel+Offline"),
+	  );
+  }
+
+  if (user_access('edit floodprotection of watch/video settings', $user)) {
+    $form['advanced']['watch']['floodprotection'] = array(
+		'#type' => 'textfield',
+		'#title' => t('floodprotection'),
+		'#default_value' => isset($node->floodprotection) ? $node->floodprotection : variable_get('vls_floodprotection4', "3"),
+		'#cols' => 32,
+		'#rows' => 2,
+		'#description' => t("floodprotection."),
+	  );
+  }
+  else {
+    $form['advanced']['watch']['floodprotection'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->floodprotection) ? $node->floodprotection : variable_get('vls_floodprotection4', "3"),
+	  );
+  }
+
+  if (user_access('edit filterregex', $user)) {
+    $form['advanced']['watch']['filterregex'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Filter regex'),
+		'#default_value' => isset($node->filterregex) ? $node->filterregex : "(?i)(fuck|cunt)(?-i)",
+		'#size' => 6,
+		'#maxlength' => 255,
+		'#description' => t("Filter regex."),
+	  );
+  }
+  else {
+    $form['advanced']['watch']['filterregex'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->filterregex) ? $node->filterregex : "(?i)(fuck|cunt)(?-i)",
+	  );
+  }
+
+  if (user_access('edit filterreplace', $user)) {
+    $form['advanced']['watch']['filterreplace'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Filter replace'),
+			'#default_value' => isset($node->filterreplace) ? $node->filterreplace : " ** ",
+			'#size' => 6,
+			'#maxlength' => 255,
+			'#description' => t("Filter replace."),
+		);
+  }
+  else {
+    $form['advanced']['watch']['filterreplace'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->filterreplace) ? $node->filterreplace : " ** ",
+	  );
+  }
+
+  if (user_access('edit layoutcode', $user)) {
+    $form['advanced']['watch']['layoutcode'] = array(
+		'#type' => 'textarea',
+		'#title' => t('layoutcode'),
+		'#default_value' => isset($node->layoutcode) ? $node->layoutcode : variable_get('vls_layoutcode3', ""),
+		'#cols' => 32,
+		'#rows' => 2,
+		'#description' => t("layoutcode."),
+	  );
+  }
+  else {
+    $form['advanced']['watch']['layoutcode'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->layoutcode) ? $node->layoutcode : variable_get('vls_layoutcode3', ""),
+	  );
+  }
+
+  if (user_access('edit fillwindow', $user)) {
+    $options = array("1" => t('Yes'), "0" => t('No'));
+    $form['advanced']['watch']['fillwindow'] = array(
+			'#type' => 'select',
+			'#title' => t('fillwindow'),
+			'#default_value' => isset($node->fillwindow) ? $node->fillwindow : variable_get('vls_fillwindow3', "1"),
+			'#options' => $options,
+			'#description' => t('fillwindow.'),
+		);
+  }
+  else {
+    $form['advanced']['watch']['fillwindow'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->fillwindow) ? $node->fillwindow : variable_get('vls_fillwindow3', "1"),
+	  );
+  }
+
+  $form['advanced']['param'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Permissions'),
+    '#tree' => TRUE,
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+  );
+  if (user_access('edit write_text', $user)) {
+    $options = array("1" => t('Yes'), "0" => t('No'));
+    $form['advanced']['param']['write_text'] = array(
+		'#type' => 'select',
+		'#title' => t('write_text'),
+		'#default_value' => isset($node->write_text) ? $node->write_text : variable_get('vls_write_text3', "1"),
+		'#options' => $options,
+		'#description' => t('Set write_text broadcasting parameters.'),
+	  );
+  }
+  else {
+    $form['advanced']['param']['write_text'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->write_text) ? $node->write_text : variable_get('vls_write_text3', "1"),
+	  );
+  }
+  /*correctable d*/
+
+  if (user_access('edit write_text2', $user)) {
+    $options = array("1" => t('Yes'), "0" => t('No'));
+    $form['advanced']['param']['write_text2'] = array(
+		'#type' => 'select',
+		'#title' => t('write_text2'),
+		'#default_value' => isset($node->write_text2) ? $node->write_text2 : variable_get('vls_write_text4', "1"),
+		'#options' => $options,
+		'#description' => t('Set write_text watch/video parameters.'),
+	  );
+  }
+  else {
+    $form['advanced']['param']['write_text2'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->write_text2) ? $node->write_text2 : variable_get('vls_write_text4', "1"),
+	  );
+  }
+
+  if (user_access('edit enabledchat', $user)) {
+    $options = array("1" => t('Yes'), "0" => t('No'));
+    $form['advanced']['param']['enabledchat'] = array(
+		'#type' => 'select',
+		'#title' => t('enabledchat'),
+		'#default_value' => isset($node->enabledchat) ? $node->enabledchat : variable_get('vls_enabledchat3', "1"),
+		'#options' => $options,
+		'#description' => t('enabledchat.'),
+	  );
+  }
+  else {
+    $form['advanced']['param']['enabledchat'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->enabledchat) ? $node->enabledchat : variable_get('vls_enabledchat3', "1"),
+	  );
+  }
+
+  if (user_access('edit enabledvideo', $user)) {
+    $options = array("1" => t('Yes'), "0" => t('No'));
+    $form['advanced']['param']['enabledvideo'] = array(
+		'#type' => 'select',
+		'#title' => t('enabledvideo'),
+		'#default_value' => isset($node->enabledvideo) ? $node->enabledvideo : variable_get('vls_enabledvideo3', "1"),
+		'#options' => $options,
+		'#description' => t('enabledvideo.'),
+	  );
+  }
+  else {
+    $form['advanced']['param']['enabledvideo'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->enabledvideo) ? $node->enabledvideo : variable_get('vls_enabledvideo3', "1"),
+	  );
+  }
+
+  if (user_access('edit enabledusers', $user)) {
+    $options = array("1" => t('Yes'), "0" => t('No'));
+    $form['advanced']['param']['enabledusers'] = array(
+		'#type' => 'select',
+		'#title' => t('enabledusers'),
+		'#default_value' => isset($node->enabledusers) ? $node->enabledusers : variable_get('vls_enabledusers3', "1"),
+		'#options' => $options,
+		'#description' => t('enabledusers.'),
+	  );
+  }
+  else {
+    $form['advanced']['param']['enabledusers'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->enabledusers) ? $node->enabledusers : variable_get('vls_enabledusers3', "1"),
+	  );
+  }
+
+  if (user_access('edit configuresource', $user)) {
+    $options = array("1" => t('Yes'), "0" => t('No'));
+    $form['advanced']['param']['configuresource'] = array(
+		'#type' => 'select',
+		'#title' => t('configureSource'),
+		'#default_value' => isset($node->configuresource) ? $node->configuresource : variable_get('vls_configuresource3', "1"),
+		'#options' => $options,
+		'#description' => t('configureSource.'),
+	  );
+  }
+  else {
+    $form['advanced']['param']['configuresource'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->configuresource) ? $node->configuresource : variable_get('vls_configuresource3', "1"),
+	  );
+  }
+  if (user_access('edit advancedcamsettings', $user)) {
+    $options = array("1" => t('Yes'), "0" => t('No'));
+    $form['advanced']['param']['advancedcamsettings'] = array(
+		'#type' => 'select',
+		'#title' => t('advancedcamsettings'),
+		'#default_value' => isset($node->advancedcamsettings) ? $node->advancedcamsettings : variable_get('vls_advancedcamsettings3', "1"),
+		'#options' => $options,
+		'#description' => t('advancedcamsettings.'),
+	  );
+  }
+  else {
+    $form['advanced']['param']['advancedcamsettings'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->advancedcamsettings) ? $node->advancedcamsettings : variable_get('vls_advancedcamsettings3', "1"),
+	  );
+  }
+
+
+  if (user_access('edit showcamsettings', $user)) {
+    $options = array("1" => t('Yes'), "0" => t('No'));
+    $form['advanced']['param']['showcamsettings'] = array(
+		'#type' => 'select',
+		'#title' => t('showcamsettings'),
+		'#default_value' => isset($node->showcamsettings) ? $node->showcamsettings : variable_get('vls_showcamsettings3', "1"),
+		'#options' => $options,
+		'#description' => t('showcamsettings.'),
+	  );
+  }
+  else {
+    $form['advanced']['param']['showcamsettings'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->advancedcamsettings) ? $node->showcamsettings : variable_get('vls_showcamsettings3', "1"),
+	  );
+  }
+
+
+
+  if (user_access('edit ads', $user)) {
+    $options = array("1" => t('Yes'), "0" => t('No'));
+    $form['advanced']['param']['disablead'] = array(
+		'#type' => 'select',
+		'#title' => t('Disable Ad'),
+		'#default_value' => isset($node->disablead) ? $node->disablead : 1,
+		'#options' => $options,
+		'#description' => t('Disable advertisements .'),
+	  );
+  }
+  else {
+    $form['advanced']['param']['disablead'] = array(
+		'#type' => 'hidden',
+		'#value' => isset($node->disablead) ? $node->disablead : 0,
+	  );
+  }
+
+  return $form;
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ * We don't want the Live Streaming rooms to get to the first page and the wrong kind of attention.
+ */
+function vls_form_vls_node_form_alter(&$form, $form_state) {
+ $form['options']['promote']['#disabled'] = TRUE;
+  $form['options']['promote']['#default_value'] = 0;
+  $form['options']['promote']['#value'] = 0;
+
+}
+
+/**
+ * Implements hook_delete().
+ */
+function vls_delete($node) {
+  // Notice that we're matching all revision, by using the node's nid.
+  // TODO Please review the conversion of this statement to the D7 database API syntax.
+  /* db_query('DELETE FROM {vls_rooms} WHERE nid = %d', array($node->nid)) */
+  db_delete('vls_rooms')
+  ->condition('nid', array($node->nid))
+  ->execute();
+}
+
+/**
+ * Implements hook_insert().
+ */
+function vls_insert($node) {
+
+  $room = check_plain($node->room);
+  if ($room == variable_get('vls_room_prefix3', 'InstantChannel')) {
+    $room = variable_get('vls_room_prefix3', 'InstantChannel') . "_" . base_convert((REQUEST_TIME - 1225500000) . rand(0, 10), 10, 36);
+  }
+
+  $cam = explode("x", $node->advanced['broadcasting']['resolution']);
+  $expiration = 0;
+  if ($node->advanced['expire']) {
+    $expiration = $node->advanced['expire'] * 3600 + REQUEST_TIME;
+  }
+  $welcome = nl2br($node->advanced['broadcasting']['welcome']);
+  $ztime = REQUEST_TIME;
+
+
+  // TODO Please review the conversion of this statement to the D7 database API syntax.
+
+
+
+  db_query("INSERT INTO {vls_rooms} ( vid, nid, room, welcome, welcome2, timecreated, timelastaccess,
+  timeexpire, timeout, credits, bandwidth, maxbandwidth, camwidth, camheight, camfps, visitors,
+   micrate, filterregex, filterreplace, room_limit, floodprotection, fillwindow, layoutcode, offlinemessage,
+   enabledchat, enabledusers, enabledvideo, write_text2, configuresource, noembeds, onlyvideo, showtimer, floodprotection2,
+   labelcolor, write_text, advancedcamsettings ,showcamsettings,disablead,users )
+   VALUES ( ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
+   ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
+   ?,?,? ,?,?,?)", array(
+   $node->vid, $node->nid, $room, $welcome, nl2br($node->advanced['watch']['welcome']), $ztime, $ztime, $expiration, $node->advanced['cleanup'] * 3600, $node->advanced['credits'], $node->advanced['broadcasting']['bandwidth'], $node->advanced['broadcasting']['maxbandwidth'], $cam[0], $cam[1], $node->advanced['broadcasting']['camfps'], $node->advanced['visitors'],
+   $node->advanced['broadcasting']['micrate'], addslashes($node->advanced['watch']['filterregex']), addslashes($node->advanced['watch']['filterreplace']), $node->advanced['room_limit'], $node->advanced['broadcasting']['floodprotection'], $node->advanced['watch']['fillwindow'], addslashes($node->advanced['watch']['layoutcode']), addslashes($node->advanced['watch']['offlinemessage']),
+   $node->advanced['param']['enabledchat'], $node->advanced['param']['enabledusers'], $node->advanced['param']['enabledvideo'], $node->advanced['param']['write_text2'], $node->advanced['param']['configuresource'], $node->advanced['broadcasting']['noembeds'], $node->advanced['broadcasting']['onlyvideo'],
+   $node->advanced['broadcasting']['showtimer'], $node->advanced['watch']['floodprotection'],
+   $node->advanced['broadcasting']['labelcolor'], $node->advanced['param']['write_text'],
+   $node->advanced['param']['advancedcamsettings']
+   , $node->advanced['param']['showcamsettings'], $node->advanced['param']['disablead'], $node->users ));
+
+
+
+
+
+  $options = array("attributes" => array("title" => $node->room, 'target' => '_blank'));
+  $link = l($room, "node/" . $node->nid, $options);
+  drupal_set_message(t('Use this link to access this Live Streaming room and invite the other participant: ') . "<BR>" . $link);
+}
+
+/**
+ * Implements hook_insert().
+ */
+function vls_update($node) {
+
+  // if this is a new node or we're adding a new revision,
+  if ($node->revision) {
+    vls_insert($node);
+  }
+  else {
+
+    $room = check_plain($node->room);
+    if ($room == variable_get('vls_room_prefix3', 'InstantChannel')) {
+      $room = variable_get('vls_room_prefix3', 'InstantChannel') . "_" . base_convert((REQUEST_TIME - 1225500000) . rand(0, 10), 10, 36);
+    }
+
+    $cam = explode("x", $node->advanced['broadcasting']['resolution']);
+    $expiration = 0;
+    if ($node->advanced['expire']) {
+      $expiration = $node->advanced['expire'] * 3600 + REQUEST_TIME;
+    }
+    $welcome = nl2br($node->advanced['broadcasting']['welcome']);
+    $ztime = REQUEST_TIME;
+
+    // TODO Please review the conversion of this statement to the D7 database API syntax.
+/*correctable n dddoembeds ->broadcasting, floodprotection 2*/
+     db_query("UPDATE {vls_rooms} SET room=?, welcome=?, timecreated=?, timelastaccess=?, timeexpire=?,
+     timeout=?, credits=?, bandwidth=?, maxbandwidth=?,
+     camwidth=?, camheight=?, camfps=?, visitors=?,
+     micrate=?, filterregex=?, filterreplace=?, room_limit=?, floodprotection=?, fillwindow=?, layoutcode=?,
+     offlinemessage=?, enabledchat=?, enabledusers=?, enabledvideo=?, write_text2=?, configuresource=?, noembeds=?, onlyvideo=?,
+     showtimer=?, floodprotection2=?,
+     labelcolor=?, write_text=?, advancedcamsettings=?, welcome2=?,showcamsettings=? ,disablead=?,users=?
+     WHERE vid = ?", array($room, $welcome, $ztime, $ztime, $expiration, $node->advanced['cleanup'] * 3600, $node->advanced['credits'], $node->advanced['broadcasting']['bandwidth'], $node->advanced['broadcasting']['maxbandwidth'], $cam[0], $cam[1], $node->advanced['broadcasting']['camfps'], $node->advanced['visitors'],
+     $node->advanced['broadcasting']['micrate'], $node->advanced['watch']['filterregex'], $node->advanced['watch']['filterreplace'], $node->advanced['room_limit'], $node->advanced['broadcasting']['floodprotection'], $node->advanced['watch']['fillwindow'], addslashes($node->advanced['watch']['layoutcode']), addslashes($node->advanced['watch']['offlinemessage']),
+     $node->advanced['param']['enabledchat'], $node->advanced['param']['enabledusers'], $node->advanced['param']['enabledvideo'], $node->advanced['param']['write_text2'], $node->advanced['param']['configuresource'],
+     $node->advanced['broadcasting']['noembeds'],
+     $node->advanced['broadcasting']['onlyvideo'], $node->advanced['broadcasting']['showtimer'],
+      $node->advanced['watch']['floodprotection'],
+     $node->advanced['broadcasting']['labelcolor'], $node->advanced['param']['write_text'], $node->advanced['param']['advancedcamsettings'],
+     nl2br($node->advanced['watch']['welcome']), $node->advanced['param']['showcamsettings'], $node->advanced['param']['disablead'], $node->users, $node->vid ))
+    ;
+  }
+}
+
+/**
+ * Implements hook_load().
+ */
+function vls_load($nodes) {
+  foreach ($nodes as $nid => &$node) {
+    $aq = db_query('SELECT * FROM {vls_rooms} WHERE vid = :vid', array(':vid' => array($node->vid)));
+    $additions = $aq->fetchAssoc();
+    foreach ($additions as $property => &$value) {
+      $node->$property = $value;
+    }
+  }
+}
+
+/**
+ * Implements hook_view().
+ */
+function vls_view($node, $view_mode) {
+
+//  $node = node_prepare($node, $teaser);
+  global $user;
+if($view_mode=='full')
+$teaser=false;
+  vls_cleanup();
+  $disabled_content = "";
+  $room_access      = 1;
+  $myroom           = db_query("SELECT * FROM {vls_rooms} WHERE room = :room", array(':room' => array($node->room)));
+  if ($myroom !== FALSE) {
+    $row = $myroom->fetchAssoc();
+    if (!$node->visitors && !$user->name) {
+      $room_access = 0;
+    }
+  }
+  else {
+    $disabled_content = t('Channel not found. Probably cleaned up: ') . $node->room;
+  }
+
+  if (!$room_access && !$disabled_content) {
+
+    $disabled_content .= t('Instant access to visitors is disabled. You need to be @r and @l into this website to access this room.', array('@r' => l('registered', 'user/register'), '@l' => array('logged', 'user/login')));
+
+  }
+
+  $options        = array("attributes" => array("title" => $node->room, 'target' => '_blank'));
+  $link           = l($node->room, "node/" . $node->nid, $options);
+  $access_content = "<BR>" . t('Use this link to access this Live Streaming channel and invite the other participant: ') . "<BR>" . $link;
+
+  $stats_content .= t('Resolution') . ": " . $node->camwidth . "x" . $node->camheight . "@" . $node->camfps . "<BR>" . t('Bandwidth') . ": " . $node->bandwidth . "/" . $node->maxbandwidth . t(' bytes/s') . "<BR>" . t('Streaming time used') . ": " . floor($node->timeused / 60000) . t(' minutes') . "" . t(' Of ') . ": " . ($node->credits ? ($node->credits . t(' minutes')) : t('unlimited')).t(' Available credits.');;
+
+  if ($teaser) {
+    $node->content['body'] = array(
+      '#markup' => $link . "<BR>" . vwrooms_body($node),
+    );
+  }
+  else {
+
+
+    $cbody = "<h3>Join Channel '" . $node->room . "'</h3>" . drupal_render(drupal_get_form('vls_start_form2', $node)) . "<h3>Watch Video</h3>" . drupal_render(drupal_get_form('vls_start_form3', $node) ). "<BR>" .vwrooms_body($node) . $access_content . "<BR>" . $stats_content;
+    if ($user->name == $node->name) {
+      $cbody = "<h3>Broadcast channel '" . $node->room . "'</h3>" . drupal_render(drupal_get_form('vls_start_form', $node)) . $cbody;
+    }
+
+    $node->content['body'] = array(
+      '#markup' => $cbody,
+    );
+  }
+  if ($disabled_content) {
+    $node->content['body'] = array(
+    '#markup' => $disabled_content,
+  );
+  }
+  return $node;
+}
+
+
+
+
+
+function _vls_broadcastoptions(&$node) {
+
+  /*
+   if(isset($_GET['mode'])){
+   if($_GET['mode']=='P'||$_GET['mode']=='F')
+   $prevmode=$node->roommode;
+
+
+   $node->roommode=$_GET['mode'];
+   if($prevmode=='P'&&$node->roommode=='F'){
+
+   unset($node->bandwidth,$node->manxbandwidth,$node->micrate,$node->camfps,$node->resolution,$node->camwidth);
+
+   }
+
+
+   }
+
+   if(module_exists('vwcredits')&&!user_access('vwcredits create free room')){
+
+   $node->roommode='P';
+
+   }
+   */
+
+
+  vwrooms_broadoptions($node);
+
+
+
+
+  $bo = array();
+  if ($node->camwidth) {
+    $node->resolution = $node->camwidth . "x" . $node->camheight;
+  }
+
+  if ($node->roommode == 'P' && module_exists('vwcredits')) {
+
+
+
+
+
+    $df = variable_get('vls_paidresolution', '');
+    $dfv = variable_get('vls_paidresolutiond', '');
+
+    if ($df) {
+      $o = explode(",", $df);
+      $options = array();
+      foreach ($o as $v) {
+        $options[$v] = $v;
+      }
+      $default = $dfv;
+    }
+    else {
+      $options = array("320x240" => "320x240", "160x120" => "160x120", "176x144" => "176x144", "352x288" => "352x288", "640x480" => "640x480");
+      $default = "320x240";
+    }
+    if ($node->resolution) {
+      $default = $node->resolution;
+    }
+
+    $bo['resolution'][0] = $options;
+    $bo['resolution'][1] = $default;
+
+
+
+
+
+
+
+
+    $df = variable_get('vls_paidcamfps', '');
+    $dfv = variable_get('vls_paidcamfpsd', '');
+
+    if ($df) {
+      $o = explode(",", $df);
+      $options = array();
+      foreach ($o as $v) {
+        $options[$v] = $v;
+      }
+      $default = $dfv;
+    }
+    else {
+      $options = array("15" => "15", "10" => "10", "12" => "12", "20" => "20", "25" => "25", "30" => "30");
+      $default = "25";
+    }
+    if ($node->campfs) {
+      $default = $node->camfps;
+    }
+
+    $bo['camfps'][0] = $options;
+    $bo['camfps'][1] = $default;
+
+
+
+
+
+
+
+
+    $df = variable_get('vls_paidmicrate', '');
+    $dfv = variable_get('vls_paidmicrated', '');
+
+    if ($df) {
+      $o = explode(",", $df);
+      $options = array();
+      foreach ($o as $v) {
+        $options[$v] = $v;
+      }
+      $default = $dfv;
+    }
+    else {
+
+      $options = array("22" => "22", "11" => "11", "44" => "44", "48" => "48");
+      $default = "44";
+    }
+    if ($node->micrate) {
+      $default = $node->micrate;
+    }
+
+    $bo['micrate'][0] = $options;
+    $bo['micrate'][1] = $default;
+
+
+
+
+
+
+    $df = variable_get('vls_paidbandwidth', '');
+    if (!$df) {
+      $df = '70000';
+    }
+    $bo['bandwidth'] = $node->bandwidth ? $node->bandwidth : $df;
+
+
+
+    $df = variable_get('vls_paidmaxbandwidth', '');
+    if (!$df) {
+      $df = '200000';
+    }
+    $bo['maxbandwidth'] = $node->maxbandwidth ? $node->maxbandwidth : $df;
+
+
+
+
+
+  }
+  else {
+    $df = variable_get('vls_defaultresolution', '');
+    $dfv = variable_get('vls_defaultresolutiond', '');
+
+    if ($df) {
+      $o = explode(",", $df);
+      $options = array();
+      foreach ($o as $v) {
+        $options[$v] = $v;
+      }
+      $default = $dfv;
+
+    }
+    else {
+      $options = array("320x240" => "320x240", "160x120" => "160x120", '176x144' => '176x144');
+      $default = "160x120";
+    }
+    if ($node->resolution) {
+      $default = $node->resolution;
+    }
+    $bo['resolution'][0] = $options;
+    $bo['resolution'][1] = $default;
+
+
+
+
+    $df = variable_get('vls_defaultcamfps', '');
+    $dfv = variable_get('vls_defaultcamfpsd', '');
+
+    if ($df) {
+      $o = explode(",", $df);
+      $options = array();
+      foreach ($o as $v) {
+        $options[$v] = $v;
+      }
+      $default = $dfv;
+    }
+    else {
+      $options = array("15" => "15", "10" => "10", "12" => "12");
+      $default = "15";
+    }
+    if ($node->camfps) {
+      $default = $node->camfps;
+    }
+
+    $bo['camfps'][0] = $options;
+    $bo['camfps'][1] = $default;
+
+
+
+    $df = variable_get('vls_defaultmicrate', '');
+    $dfv = variable_get('vls_defaultmicrated', '');
+
+    if ($df) {
+      $o = explode(",", $df);
+      $options = array();
+      foreach ($o as $v) {
+        $options[$v] = $v;
+      }
+      $default = $dfv;
+    }
+    else {
+
+      $options = array("22" => "22", "11" => "11");
+      $default = "15";
+    }
+    if ($node->micrate) {
+      $default = $node->micrate;
+    }
+
+    $bo['micrate'][0] = $options;
+    $bo['micrate'][1] = $default;
+
+
+
+
+    $df = variable_get('vls_defaultbandwidth', '');
+    if (!$df) {
+      $df = '50000';
+    }
+    $bo['bandwidth'] = (int)$node->bandwidth? $node->bandwidth : $df;
+
+
+
+    $df = variable_get('vls_defaultmaxbandwidth', '');
+    if (!$df) {
+      $df = '100000';
+    }
+    $bo['maxbandwidth'] = (int)$node->maxbandwidth ? $node->maxbandwidth : $df;
+
+
+
+
+  }
+
+
+
+  return $bo;
+
+
+}
+
+
+
+function _vls_change_form(&$form, &$node) {
+  $node->roommode = filter_xss($_POST['roommode']);
+
+
+  $bo = _vls_broadcastoptions($node);
+
+
+  ///$o=print_r($bo,true);
+  /// db_query("insert into log set log='%s',file='bo'",$o);
+
+
+
+
+
+  if (user_access('edit welcome of broadcasting settings', $user)) {
+    $form['advanced']['cnt']['broadcasting']['welcome'] = array(
+		'#type' => 'textarea',
+		'#title' => t('Welcome message'),
+		'#default_value' => isset($node->welcome) ? $node->welcome : 'Welcome!',
+		'#cols' => 32,
+	//    '#value' => $_POST['advanced']['broadcasting']['welcome'],
+
+		'#rows' => 2,
+		'#description' => t("Welcome message displayed when entering room."),
+	  );
+  }
+  else {
+    $form['advanced']['cnt']['broadcasting']['welcome'] = array(
+		'#type' => 'hidden',
+		'#default_value' => isset($node->welcome) ? $node->welcome : 'Welcome!',
+	  );
+  }
+
+  if (user_access('edit onlyvideo', $user)) {
+    $options = array("1" => t('Yes'), "0" => t('No'));
+    $form['advanced']['cnt']['broadcasting']['onlyvideo'] = array(
+			'#type' => 'select',
+			'#title' => t('Show only video panel').' GET '.variable_get('vls_onlyvideo3', "0").' NODE '.$node->onlyvideo,
+			'#default_value' => isset($node->onlyvideo) ? $node->onlyvideo : variable_get('vls_onlyvideo3', "0"),
+			'#options' => $options,
+			'#description' => t('onlyvideo.'),
+	//	    '#value' => $_POST['advanced']['broadcasting']['onlyvideo'],
+
+		);
+  }
+  else {
+    $form['advanced']['cnt']['broadcasting']['onlyvideo'] = array(
+		'#type' => 'hidden',
+		'#default_value' => isset($node->onlyvideo) ? $node->onlyvideo : variable_get('vls_onlyvideo3', "0"),
+	  );
+  }
+
+  if (user_access('edit noembeds', $user)) {
+    $options = array("1" => t('Yes'), "0" => t('No'));
+    $form['advanced']['cnt']['broadcasting']['noembeds'] = array(
+			'#type' => 'select',
+			'#title' => t('hide embed codes'),
+			'#default_value' => isset($node->noembeds) ? $node->noembeds : variable_get('vls_noembeds3', "0"),
+			'#options' => $options,
+		//    '#value' => $_POST['advanced']['broadcasting']['noembeds'],
+
+			'#description' => t('noembeds.'),
+		);
+  }
+  else {
+    $form['advanced']['cnt']['broadcasting']['noembeds'] = array(
+		'#type' => 'hidden',
+		'#default_value' => isset($node->noembeds) ? $node->noembeds : variable_get('vls_noembeds3', "0"),
+	  );
+  }
+
+  if (user_access('edit showtimer', $user)) {
+    $options = array("1" => t('Yes'), "0" => t('No'));
+    $form['advanced']['cnt']['broadcasting']['showtimer'] = array(
+			'#type' => 'select',
+			'#title' => t('show timer'),
+			'#default_value' => isset($node->showtimer) ? $node->showtimer : variable_get('vls_showtimer3', "1"),
+			'#options' => $options,
+			'#description' => t('showtimer.'),
+		   // '#value' => $_POST['advanced']['broadcasting']['showtimer'],
+
+		);
+  }
+  else {
+    $form['advanced']['cnt']['broadcasting']['showtimer'] = array(
+		'#type' => 'hidden',
+		'#default_value' => isset($node->showtimer) ? $node->showtimer : variable_get('vls_showtimer3', "1"),
+	  );
+  }
+
+  if (user_access('edit floodprotection of broadcasting settings', $user)) {
+    $form['advanced']['cnt']['broadcasting']['floodprotection'] = array(
+		'#type' => 'textfield',
+		'#title' => t('floodprotection'),
+		'#default_value' => isset($node->floodprotection) ? $node->floodprotection : variable_get('vls_floodprotection3', "3"),
+		'#size' => 6,
+//	    '#value' => $_POST['advanced']['broadcasting']['floodprotection'],
+
+	  '#maxlength' => 6,
+		'#description' => t("floodprotection."),
+	  );
+  }
+  else {
+    $form['advanced']['cnt']['broadcasting']['floodprotection'] = array(
+		'#type' => 'hidden',
+		'#default_value' => isset($node->floodprotection) ? $node->floodprotection : variable_get('vls_floodprotection3', "3"),
+	  );
+  }
+
+  if (user_access('edit labelcolor', $user)) {
+    $form['advanced']['cnt']['broadcasting']['labelcolor'] = array(
+		'#type' => 'textfield',
+		'#title' => t('labelcolor'),
+		'#default_value' => isset($node->labelcolor) ? $node->labelcolor : variable_get('vls_labelcolor3', "FFFFFF"),
+		'#size' => 7,
+	 //   '#value' => $_POST['advanced']['broadcasting']['labelcolor'],
+		'#maxlength' => 8,
+		'#description' => t("labelcolor."),
+	  );
+  }
+  else {
+    $form['advanced']['cnt']['broadcasting']['labelcolor'] = array(
+		'#type' => 'hidden',
+		'#default_value' => isset($node->labelcolor) ? $node->labelcolor : variable_get('vls_labelcolor3', "FFFFFF"),
+	  );
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  if (user_access('edit camwidth', $user) && user_access('edit camheight', $user)) {
+    $options = array("320x240" => "320x240", "160x120" => "160x120", "176x144" => "176x144", "352x288" => "352x288", "640x480" => "640x480");
+    $form['advanced']['cnt']['broadcasting']['resolution'] = array(
+			'#type' => 'select',
+			'#title' => t('Resolution'),
+			'#default_value' => $bo['resolution'][1],
+			'#options' => $bo['resolution'][0],
+			'#description' => t('Camera desired mode: resolution.'),
+		);
+  }
+  else {
+    $form['advanced']['cnt']['broadcasting']['resolution'] = array(
+		'#type' => 'hidden',
+		'#default_value' => $bo['resolution'][1],
+	  );
+  }
+
+  if (user_access('edit camfps', $user)) {
+    $options = array("15" => "15", "10" => "10", "12" => "12", "20" => "20", "25" => "25", "30" => "30");
+    $form['advanced']['cnt']['broadcasting']['camfps'] = array(
+			'#type' => 'select',
+			'#title' => t('FPS'),
+			'#default_value' => $bo['camfps'][1],
+			'#options' => $bo['camfps'][0],
+			'#description' => t('Camera desired  mode: frames per second.'),
+		);
+  }
+  else {
+    $form['advanced']['cnt']['broadcasting']['camfps'] = array(
+		'#type' => 'hidden',
+		'#default_value' => $bo['camfps'][1],
+	  );
+  }
+
+  if (user_access('edit micrate', $user)) {
+    $options = array("22" => "22", "11" => "11", "44" => "44", "48" => "48");
+    $form['advanced']['cnt']['broadcasting']['micrate'] = array(
+			'#type' => 'select',
+			'#title' => t('Micrate'),
+			'#default_value' => $bo['micrate'][1],
+			'#options' => $bo['micrate'][0],
+			'#description' => t('Camera desired  mode: micrate.'),
+		);
+  }
+  else {
+    $form['advanced']['cnt']['broadcasting']['micrate'] = array(
+		'#type' => 'hidden',
+		'#default_value' => $bo['micrate'][1],
+	  );
+  }
+
+  if (user_access('edit bandwidth', $user)) {
+    $form['advanced']['cnt']['broadcasting']['bandwidth'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Bandwidth'),
+		'#default_value' => $bo['bandwidth'],
+		'#size' => 6,
+		'#maxlength' => 8,
+		'#description' => t("Default bandwidth per video stream in bytes per second."),
+	  );
+  }
+  else {
+    $form['advanced']['cnt']['broadcasting']['bandwidth'] = array(
+		'#type' => 'hidden',
+		'#default_value' => $bo['bandwidth'],
+	  );
+  }
+
+  if (user_access('edit maxbandwidth', $user)) {
+    $form['advanced']['cnt']['broadcasting']['maxbandwidth'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Maximum bandwidth'),
+		'#default_value' => $bo['maxbandwidth'],
+		'#size' => 6,
+		'#maxlength' => 8,
+		'#description' => t("Maximum bandwidth per video stream in bytes per second."),
+	  );
+  }
+  else {
+    $form['advanced']['cnt']['broadcasting']['maxbandwidth'] = array(
+		'#type' => 'hidden',
+		'#default_value' => $bo['maxbandwidth'],
+	  );
+  }
+
+}
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vls_livevv() {
+  ob_start();
+  global $base_url, $user;
+
+
+  $room = $n = filter_xss($_POST["r"]);
+  setcookie("r", urlencode($n), REQUEST_TIME + 777787, '/');
+  setcookie("vvusername", $user->name, REQUEST_TIME + 777787, '/');
+
+  $url = $base_url . variable_get('vls_path', '');
+
+  $swfurl = $url .(substr($url,-1)=='/'?"":'/'). "live_video.swf?n=" . urlencode($n);
+  $mruu = db_query("SELECT * FROM {vls_rooms} WHERE room = :room", array(':room' => $room));
+  $mr = $mruu->fetchObject();
+//  $isowner=($mr->uid==$user->uid);
+  if (!$mr->nid) {
+    return t('Invalid room');
+
+  }
+  $nuiduu = db_query("select uid from {node} n where n.nid=?", array($mr->nid));
+  $nuid = $nuiduu->fetchField();
+  if ($nuid == $user->uid) {
+  	$owner = 1;
+  }
+
+
+
+  if ($mr->users&&!$owner) {
+
+    if (!$user->uid) {
+      return drupal_access_denied();
+    }
+
+    if ($mr->users) {
+
+      $users = explode(",", $mr->users);
+
+      if (!in_array($user->name, $users)) {
+        return drupal_access_denied();
+
+      }
+
+
+    }
+
+
+  }
+  //private
+
+
+
+  if (!variable_get('vwrooms_in', 0)) {
+    echo theme('vls_v_swf', array('swfurl' => $swfurl, 'base' => $url, 'n' => $room));
+    exit;
+  }
+  else {
+    return theme('vls_v_swf', array('swfurl' => $swfurl, 'base' => $url, 'n' => $room));
+
+
+  }
+
+
+
+
+}
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vls_livew() {
+  ob_start();
+  global $base_url, $user;
+  //setcookie('vls_uid','',0,"/");
+  ///setcookie("vls_hash",'',0,'/');
+
+  if (!$user->uid) {
+//    return drupal_access_denied();
+  }
+  if (variable_get('vls_path', "/vls/") == '/vls/') {
+    return t('Not configured');
+  }
+
+  $url = $base_url . variable_get('vls_path', "/vls/");
+
+
+  $uid = $user->uid;
+  $room = filter_xss($_POST["r"]);
+  $uname = filter_xss($_POST['username']);
+  if ($uname == 'Guest') {
+
+    $uname = $uname . rand(1, 100000);
+
+  }
+
+  ////set_cookie('vls_uid',$uid,0,"/");
+
+
+
+  $swfurl = $url . "/live_watch.swf?n=" . urlencode($room);
+
+  $room = filter_xss($_POST["r"]);
+
+
+
+  $b = setcookie("r", urlencode($room), REQUEST_TIME + 777777, '/');
+
+  $mruu = db_query("SELECT * FROM {vls_rooms} WHERE room = :room", array(':room' => array($room)));
+
+  $mr = $mruu->fetchObject();
+
+
+
+  if (!$mr->nid) {
+    return t('Invalid room');
+
+  }
+  $nuiduu = db_query("select uid from {node} n where n.nid=?", array($mr->nid));
+  $nuid = $nuiduu->fetchField();
+  if ($nuid == $user->uid) {
+  	$owner = 1;
+  }
+
+
+  if ($mr->users&&!$owner) {
+    if (!$user->uid) {
+
+      return drupal_access_denied();
+    }
+
+
+
+    $users = explode(",", $mr->users);
+    if (!(in_array($user->name, explode(',', $mr->users)) || in_array($user->mail, explode(',', $mr->users)))) {
+      return t('User not allowed.');
+
+    }
+
+
+
+  }
+  //private
+  if (!$mr->visitors && !$user->uid) {
+    return MENU_ACCESS_DENIED;
+  }
+  $rid = $mr->nid;
+  $uid = $user->uid;
+  $md5 = user_password(32);
+  $owner = 0;
+  $nuiduu = db_query("select uid from {node} n where n.nid=?", array($rid));
+  $nuid = $nuiduu->fetchField();
+  if ($nuid == $uid) {
+    $owner = 1;
+  }
+  if (!$rid) {
+
+    return t('No room');
+  }
+
+
+  if (in_array($uname, explode(',', variable_get('vwrooms_bannednames', 'Guest')))) {
+
+    return t('Bad user name');
+
+  }
+
+
+
+
+
+  $fuuu = db_query("select * from {vwrooms_users} where uname = :s1 and room_nid=:s2 order by o desc", array(':s1'=>$uname,':s2'=> $rid));
+  $fu = $fuuu->fetchObject();
+  if ($fu->id) {
+    if (!$user->uid) {
+
+      return t('Duplicate user name');
+    }
+
+    $id = $fu->id;
+    if ($fu->uid != $user->uid) {
+      return t("Username in use");
+    }
+    else {
+if($fu->o==1){
+
+	$isowner=true;
+	$md5=$fu->hash;
+}
+else
+      db_query("update {vwrooms_users} set hash='$md5' where id=$fu->id");
+
+
+    }
+  }
+  else {
+
+    db_query("insert into {vwrooms_users} set uname=:s1 ,hash=:s2,timestamp=now(),room_nid=:s3,uid=:s4,room=:s5,o=0", array(':s1'=>$uname, ':s2'=>$md5, ':s3'=>$rid, ':s4'=>$user->uid, ':s5'=>$room));
+    $id = vwrooms_insert_id();
+
+
+  }
+  if (!$id) {
+
+    return t('No user');
+
+  }
+  setcookie('vls_uid', $id, 0, '/');
+  setcookie("vls_hash", $md5, 0, '/');
+
+
+  if (module_exists('vwcredits')) { //credits
+    $fruu = db_query("select * from {vwcredits_cost} where room_nid=?", array($rid));
+    $fr = $fruu->fetchObject();
+    if (!$fr->uid) {
+      ///return t("No room info for $room ");
+
+    }
+
+    else {
+
+      if (!$user->uid) {
+        db_query("delete from {vwrooms_users} where id=?", array($id));
+        setcookie('vls_uid', '', 0, '/');
+        setcookie("vls_hash", '', 0, '/');
+
+        return drupal_access_denied();
+
+      }
+
+
+      $paidroom = 1;
+      $ftuu = db_query("select * from {vwcredits_tmpcr}   where uid=? ", array($user->uid));
+      $ft = $ftuu->fetchObject();
+
+      if (!$ft->uid) {
+        db_query("insert into {vwcredits_tmpcr} set uid=? ", array($user->uid));
+
+      }
+      $ftuu = db_query("select * from {vwcredits_credit}   where uid=? ", array($user->uid));
+      $ft = $ftuu->fetchObject();
+      if (!$ft->uid) {
+        db_query("insert into {vwcredits_credit} set uid=?", array($user->uid));
+
+      }
+      $x = variable_get("vwcredits_vls_idletime", 40);
+
+      if (!$x) {
+        $x = 40;
+      }
+      $t = REQUEST_TIME;
+
+
+      // TODO Please convert this statement to the D7 database API syntax.
+      db_query("update {vwcredits_transaction} set applied=1,app_time=from_unixtime(pts) where applied=0 and adddate(from_unixtime(pts),interval $x second) <now() and type in ('roomcost','ownersroomcost','ownersgain','ownerscost') and room_nid=?", array($rid));
+
+    }
+  }  //credits
+
+    if (!variable_get('vwrooms_in', 0)) {
+      echo theme('vls_w_swf', array('swfurl' => $swfurl, 'base' => $url, 'n' => $room));
+      exit;
+    }
+    else {
+      return theme('vls_w_swf', array('swfurl' => $swfurl, 'base' => $url, 'n' => $room));
+
+
+    }
+
+
+
+}
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vls_livebc() {
+  ob_start();
+  global $base_url, $user;
+  /// $base_url=url("/",array('absolute'=>true));
+  $url = $base_url . variable_get('vls_path', "/vls/");
+  ///setcookie('vls_a_uid','',0,"/");
+  ///setcookie("vls_a_hash",'',0,'/');
+  setcookie('vls_uid', '', 0, "/");
+  setcookie("vls_hash", '', 0, '/');
+
+
+  $uid = $user->uid;
+  $room = filter_xss($_POST["r"]);
+  $md5 = user_password(32);
+  $uname = $room;
+
+  if (!$uid) {
+
+    return drupal_access_denied();
+  }
+
+  $mruu = db_query("SELECT r.* FROM {vls_rooms} r inner join {node} n on (n.vid=r.vid) WHERE room = ? and n.uid =?", array($room, $user->uid));
+  $mr = $mruu->fetchObject();
+  //print_r($mr);
+  if (!$mr->nid) {
+    return t('Invalid room @r', array('@r' => $room));
+
+  }
+
+  $rid = $mr->nid;
+
+  db_query("delete from {vwrooms_users} where room_nid=?", array($rid));
+
+  db_query("insert into {vwrooms_users} set uname=? ,hash=?,timestamp=now(),room_nid=?,uid=?,room=?,o=1", array($uname, $md5, $rid, $user->uid, $room));
+
+
+  $id = vwrooms_insert_id();
+
+
+
+  if (!$id) {
+
+    return t('No user');
+
+  }
+
+
+
+  $tc1 = setcookie('vls_a_uid', $id, REQUEST_TIME + 36000, "/");
+  $tc = setcookie("vls_a_hash", $md5, REQUEST_TIME + 36000, '/');
+  if (!$tc || !$tc1) {
+    return t('Cannot set cookie.');
+  }
+  $loggedin = 1;
+  $msg = '';
+  if (module_exists('vwcredits')) {
+    $fruu = db_query("select * from {vwcredits_cost} where room_nid=? and uid=?", array($rid, $user->uid));
+    $fr = $fruu->fetchObject();
+    if (!$fr->uid) {
+
+    }
+
+    else {
+      $paidroom = 1;
+      $ftuu =	db_query("select * from {vwcredits_tmpcr}   where uid=? ", array($user->uid));
+      $ft = $ftuu->fetchObject();
+      if (!$ft->uid) {
+        db_query("insert into {vwcredits_tmpcr} set uid=? ", array($user->uid));
+
+      }
+      $ftuu = db_query("select * from {vwcredits_credit}   where uid=? ", array($user->uid));
+      $ft = $ftuu->fetchObject();
+      if (!$ft->uid) {
+        db_query("insert into {vwcredits_credit} set uid=?", array($user->uid));
+
+      }
+
+
+
+
+    }
+    $x = variable_get("vwcredits_vls_idletime", 40);
+    if (!$x) {
+      $x = 40;
+    }
+    $t = REQUEST_TIME;
+
+
+    // TODO Please convert this statement to the D7 database API syntax.
+    db_query("update {vwcredits_transaction} set applied=1,app_time=from_unixtime(pts) where applied=0 and adddate(from_unixtime(pts),interval $x second) <now() and type in ('roomcost','ownersroomcost','ownersgain','ownerscost') and room_nid=?", array($rid));
+
+  }//cr
+
+  $swfurl = $url . "/live_broadcast.swf?room=" . urlencode($room);
+
+  //// $url=variable_get('vls_path','');
+  if (!variable_get('vwrooms_in', 0)) {
+    echo theme('vls_l_swf', array('swfurl' => $swfurl, 'base' => $url, 'n' => $room));
+    exit;
+  }
+  else {
+    return theme('vls_l_swf', array('swfurl' => $swfurl, 'base' => $url, 'n' => $room));
+
+
+  }
+
+
+}
+
+
+
+
+/**
+ * implementation of  hook_theme
+ */
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vls_theme() {
+
+  $path = drupal_get_path('module', 'vls');
+
+  return array(
+'vls_w_swf' => array('variables' => array('swfurl' => null, 'base' => null, 'n' => null), 'path' => $path . '/templates', 'template' => 'vls_w_swf'), //watch
+'vls_v_swf' => array('variables' => array('swfurl' => null, 'base' => null, 'n' => null), 'path' => $path . '/templates', 'template' => 'vls_v_swf'), //video
+'vls_l_swf' => array('variables' => array('swfurl' => null, 'base' => null, 'n' => null), 'path' => $path . '/templates', 'template' => 'vls_l_swf') //broad cast
+
+
+
+
+);
+
+}
+

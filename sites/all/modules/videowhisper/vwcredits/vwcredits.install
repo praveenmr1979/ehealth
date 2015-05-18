@@ -1,0 +1,1043 @@
+<?php
+/**
+ * @file
+ * Install, update and uninstall functions for the vwcredits module.
+ *
+ */
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_schema() {
+  $schema = array();
+
+  $schema['vwcredits_ipn'] = array(
+  'description' => '',
+  'fields' => array(
+    'order_id' => array(
+      'description' => '',
+      'type' => 'int',
+      'default'=>0,
+      'unsigned' => TRUE,
+      'not null' =>true,
+),
+    'uid' => array(
+      'description' => '',
+      'type' => 'int',
+  'default'=>0,
+      'unsigned' => TRUE,
+      'not null' => false,
+),
+    'txn_id' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '20',
+  'default'=>'',
+      'not null' => false,
+),
+    'txn_type' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '20',
+      'not null' => FALSE,
+),
+    'parent_txn_id' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '20',
+  'default'=>'',
+      'not null' => false,
+),
+    'currency' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '20',
+  'default'=>'USD',
+      'not null' => false,
+),
+    'mc_gross' => array(
+      'description' => '',
+      'type' => 'float',
+      'size' => 'big',
+  'default'=>0,
+      'not null' => false,
+      'precision' => '7',
+      'scale' => '2',
+),
+    'status' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '20',
+  'default'=>'',
+      'not null' => false,
+),
+    'receiver_email' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '100',
+      'not null' => false,
+  'default'=>'',
+),
+    'payer_email' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '100',
+  'default'=>'',
+      'not null' =>false,
+),
+    'received' => array(
+      'description' => '',
+      'type' => 'int',
+  'default'=>0,
+      'unsigned' => TRUE,
+      'not null' => false,
+),
+    'item' => array(
+      'description' => '',
+      'type' => 'int',
+  'default'=>0,
+      'unsigned' => TRUE,
+      'not null' => false,
+),
+    'method' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '20',
+      'not null' => TRUE,
+      'default'=>'',),
+    'comment' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '250',
+      'not null' => FALSE,
+),
+    'create_date' => array(
+      'description' => '',
+      'mysql_type' => 'datetime',
+      'not null' => FALSE,
+),
+    'id' => array(
+      'description' => '',
+      'type' => 'serial',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+),
+),
+  'primary key' => array('id'),
+);
+
+  $schema['vwcredits_credit'] = array(
+  'description' => '',
+  'fields' => array(
+    'uid' => array(
+      'description' => '',
+      'type' => 'int',
+      'unsigned' => TRUE,
+  'default'=>0,
+      'not null' => TRUE,
+),
+    'bal' => array(
+      'description' => '',
+      'type' => 'float',
+      'size' => 'big',
+      'not null' => TRUE,
+      'default'=>0,
+      'precision' => '7',
+      'scale' => '2',
+),
+    'paypal' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '100',
+      'not null' => false,
+),
+),
+);
+
+
+  $schema['vwcredits_tmpcr'] = array(
+  'description' => '',
+  'fields' => array(
+    'uid' => array(
+      'description' => '',
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+),
+    'bal' => array(
+      'description' => '',
+      'type' => 'float',
+      'size' => 'big',
+      'default'=>0,
+      'not null' => TRUE,
+      'precision' => '7',
+      'scale' => '2',
+),
+    'utime' => array(
+      'description' => '',
+      'mysql_type' => 'datetime',
+      'not null' => false,
+),
+    'ltime' => array(
+      'description' => '',
+      'mysql_type' => 'datetime',
+      'not null' =>false,
+),
+    'dr' => array(
+      'description' => '',
+      'type' => 'float',
+      'size' => 'big',
+      'default'=>0,
+      'not null' => false,
+      'precision' => '7',
+      'scale' => '2',
+),
+    'cr' => array(
+      'description' => '',
+      'type' => 'float',
+      'size' => 'big',
+      'not null' => false,
+      'default'=>0,
+      'precision' => '7',
+      'scale' => '2',
+),
+    'uname' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '100',
+      'not null' => false,
+),
+),
+);
+
+
+  $schema['vwcredits_payment'] = array(
+  'description' => '',
+  'fields' => array(
+    'order_id' => array(
+      'description' => '',
+      'type' => 'serial',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+),
+    'currency' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '5',
+  'default'=>'USD',
+      'not null' => false,
+),
+    'credit' => array(
+      'description' => '',
+      'type' => 'float',
+      'size' => 'big',      'default'=>0,
+      'not null' => false,
+      'precision' => '7',
+      'scale' => '2',
+),
+    'amt' => array(
+      'description' => '',
+      'type' => 'float',
+      'size' => 'big',      'default'=>0,
+      'not null' => false,
+      'precision' => '7',
+      'scale' => '2',
+),
+    'cdate' => array(
+      'description' => '',
+      'mysql_type' => 'datetime',
+      'not null' => false,
+),
+    'item' => array(
+      'description' => '',
+      'type' => 'int',      'default'=>0,
+      'unsigned' => TRUE,
+      'not null' => false,
+),
+    'plimus_cid' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '20',
+      'not null' => false,
+),
+    'status' => array(
+      'description' => '',
+      'type' => 'int',
+      'size' => 'tiny',      'default'=>0,
+      'not null' => false,
+),
+    'uid' => array(
+      'description' => '',
+      'type' => 'int',
+      'unsigned' => TRUE,      'default'=>0,
+      'not null' => false,
+),
+    'business' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '250',
+      'not null' => false,
+),
+),
+  'primary key' => array('order_id'),
+);
+
+
+
+  $schema['vwcredits_pack'] = array(
+  'description' => '',
+  'fields' => array(
+    'pid' => array(
+      'description' => '',
+      'type' => 'serial',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+),
+    'name' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '50',
+      'not null' => TRUE,
+),
+    'dscr' => array(
+      'description' => '',
+      'type' => 'text',
+      'not null' => false,
+),
+    'credit' => array(
+      'description' => '',
+      'type' => 'float',
+      'size' => 'big',      'default'=>0,
+      'not null' => TRUE,
+      'precision' => '7',
+      'scale' => '2',
+),
+    'currency' => array(
+      'description' => '',
+      'type' => 'varchar',      'default'=>'',
+      'length' => '5',
+      'not null' => false,
+),
+    'price' => array(
+      'description' => '',
+      'type' => 'float',
+      'size' => 'big',
+      'not null' => false,      'default'=>0,
+      'precision' => '7',
+      'scale' => '2',
+),
+    'subscription' => array(
+      'description' => '',
+      'type' => 'int',
+      'size' => 'tiny',      'default'=>0,
+      'not null' => false,
+),
+    'active' => array(
+      'description' => '',
+      'type' => 'int',
+      'size' => 'tiny',      'default'=>0,
+      'not null' => TRUE,
+),
+    'plimus_cid' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '20',
+      'not null' => FALSE,
+),
+    'plimus_tid' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '20',
+      'not null' => FALSE,
+),
+    'business' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '250',
+      'not null' => FALSE,
+),
+),
+  'primary key' => array('pid'),
+);
+
+
+  $schema['vwcredits_transaction'] = array(
+  'description' => '',
+  'fields' => array(
+    'uid' => array(
+      'description' => '',
+      'type' => 'int',      'default'=>0,
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+),
+    'credit' => array(
+      'description' => '',
+      'type' => 'float',
+      'size' => 'big',      'default'=>0,
+      'not null' => false,
+      'precision' => '10',
+      'scale' => '4',
+),
+    'trans_type' => array(
+      'description' => '',
+      'type' => 'char',      'default'=>'',
+      'length' => '1',
+      'not null' => false,
+),
+    'type' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '20',
+      'not null' => FALSE,
+),
+    'trans_time' => array(
+      'description' => '',
+      'mysql_type' => 'datetime',
+      'not null' => false,
+),
+    'comment' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '300',
+      'not null' => false,
+),
+    'room_nid' => array(
+      'description' => '',
+      'type' => 'int',      'default'=>0,
+      'unsigned' => TRUE,
+      'not null' => false,
+),
+    'context' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '300',
+      'not null' => false,
+),
+    'amt' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '20',      'default'=>'',
+      'not null' => false,
+),
+    'transfer_type' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '20',
+      'not null' => FALSE,
+),
+    'pts' => array(
+      'description' => '',
+      'type' => 'int',      'default'=>0,
+      'unsigned' => TRUE,
+      'not null' => false,
+),
+    'tid' => array(
+      'description' => '',
+      'type' => 'serial',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+),
+    'applied' => array(
+      'description' => '',
+      'type' => 'int',
+      'size' => 'tiny',      'default'=>0,
+      'not null' => false,
+),
+    'app_time' => array(
+      'description' => '',
+      'mysql_type' => 'datetime',
+      'not null' => FALSE,
+),
+    'tts' => array(
+      'description' => '',
+      'type' => 'int',
+      'unsigned' => TRUE,      'default'=>0,
+      'not null' => false,
+),
+),
+  'primary key' => array('tid'),
+);
+  $schema['vwcredits_transfer'] = array(
+  'description' => '',
+  'fields' => array(
+    'uid' => array(
+      'description' => '',
+      'type' => 'int',
+      'unsigned' => TRUE,      'default'=>0,
+      'not null' => TRUE,
+),
+    'room_nid' => array(
+      'description' => '',
+      'type' => 'int',
+      'unsigned' => TRUE,      'default'=>0,
+      'not null' => false,
+),
+    'mode' => array(
+      'description' => '',
+      'type' => 'char',
+      'length' => '1',      'default'=>'',
+      'not null' => false,
+),
+    'start_time' => array(
+      'description' => '',
+      'mysql_type' => 'datetime',
+      'not null' => false,
+),
+    'last_time' => array(
+      'description' => '',
+      'mysql_type' => 'datetime',
+      'not null' => false,
+),
+    'app_time' => array(
+      'description' => '',
+      'mysql_type' => 'datetime',
+      'not null' => false,
+),
+    'applied' => array(
+      'description' => '',
+      'type' => 'int',      'default'=>0,
+      'size' => 'tiny',
+      'not null' => TRUE,
+),
+    'credit' => array(
+      'description' => '',
+      'type' => 'float',
+      'size' => 'big',      'default'=>0,
+      'not null' => false,
+      'precision' => '7',
+      'scale' => '2',
+),
+    'tcost' => array(
+      'description' => '',
+      'type' => 'float',      'default'=>0,
+      'size' => 'big',
+      'not null' => false,
+      'precision' => '7',
+      'scale' => '2',
+),
+    'tts' => array(
+      'description' => '',
+      'type' => 'int',
+      'unsigned' => TRUE,      'default'=>0,
+      'not null' => false,
+),
+    'lts' => array(
+      'description' => '',
+      'type' => 'int',      'default'=>0,
+      'unsigned' => TRUE,
+      'not null' => false,
+),
+    'ats' => array(
+      'description' => '',
+      'type' => 'int',
+      'unsigned' => TRUE,      'default'=>0,
+      'not null' => false,
+),
+    'acost' => array(
+      'description' => '',
+      'type' => 'float',
+      'size' => 'big',
+      'not null' => false,      'default'=>0,
+      'precision' => '7',
+      'scale' => '2',
+),
+    'transfer_type' => array(
+      'description' => '',
+      'type' => 'varchar',      'default'=>'',
+      'length' => '20',
+      'not null' => false,
+),
+    'source' => array(
+      'description' => '',
+      'type' => 'varchar',      'default'=>'',
+      'length' => '50',
+      'not null' => false,
+),
+    'tid' => array(
+      'description' => '',
+      'type' => 'serial',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+),
+    'pts' => array(
+      'description' => '',
+      'type' => 'int',
+      'unsigned' => TRUE,      'default'=>0,
+      'not null' => false,
+),
+    'lg' => array(
+      'description' => '',
+      'type' => 'varchar',      'default'=>'',
+      'length' => '255',
+      'not null' => false,
+),
+),
+  'primary key' => array('tid'),
+  'unique keys' => array(
+    'uid' => array('uid', 'room_nid', 'transfer_type')
+),
+);
+
+
+  $schema['vwcredits_wt'] = array(
+  'description' => '',
+  'fields' => array(
+    'wt' => array(
+      'description' => '',
+      'type' => 'float',      'default'=>0,
+      'size' => 'big',
+      'not null' => TRUE,
+      'precision' => '7',
+      'scale' => '2',
+),
+    'wtime' => array(
+      'description' => '',
+      'mysql_type' => 'datetime',
+      'not null' => false,
+),
+    'uid' => array(
+      'description' => '',      'default'=>0,
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+),
+    'wtxt' => array(
+      'description' => '',
+      'type' => 'varchar',      'default'=>'',
+      'length' => '100',
+      'not null' => false,
+),
+),
+);
+
+  $schema['vwcredits_cost'] = array(
+  'description' => '',
+  'fields' => array(
+    'room_nid' => array(
+      'description' => '',
+      'type' => 'int',
+      'unsigned' => TRUE,      'default'=>0,
+      'not null' => false,
+),
+    'uid' => array(
+      'description' => '',
+      'type' => 'int',
+      'unsigned' => TRUE,      'default'=>0,
+      'not null' => TRUE,
+),
+    'roomcost' => array(
+      'description' => '',
+      'type' => 'float',
+      'size' => 'big',      'default'=>0,
+      'not null' => false,
+      'precision' => '7',
+      'scale' => '2',
+),
+    'ownerscost' => array(
+      'description' => '',
+      'type' => 'float',
+      'size' => 'big',      'default'=>0,
+      'not null' => false,
+      'precision' => '7',
+      'scale' => '2',
+),
+    'ownersroomcost' => array(
+      'description' => '',
+      'type' => 'float',
+      'size' => 'big',      'default'=>0,
+      'not null' => false,
+      'precision' => '7',
+      'scale' => '2',
+),
+    'graceperiod' => array(
+      'description' => '',
+      'type' => 'int',      'default'=>0,
+      'unsigned' => TRUE,
+      'not null' => false,
+),
+    'room' => array(
+      'description' => '',
+      'type' => 'varchar',      'default'=>'',
+      'length' => '64',
+      'not null' => false,
+),
+    'ownersgain' => array(
+      'description' => '',
+      'type' => 'float',      'default'=>0,
+      'size' => 'big',
+      'not null' =>false,
+      'precision' => '7',
+      'scale' => '2',
+),
+),
+  'primary key' => array('room_nid', 'uid'),
+);
+
+
+  return $schema;
+
+
+}
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_install() {
+	error_reporting(0);
+  // TODO The drupal_(un)install_schema functions are called automatically in D7.
+  // drupal_install_schema('vwcredits')
+  db_query("insert into {vwcredits_credit} (uid,bal) select uid,0 from {users} u where u.uid not in (select uid from {vwcredits_credit})");
+  db_query("insert into {vwcredits_tmpcr} (uid,uname)  select uid,name from {users} u where u.uid not in (select uid from {vwcredits_tmpcr})");
+  db_query("delete from {vwcredits_tmpcr} where uid=0");
+  db_query("delete from {vwcredits_credit} where uid=0");
+$form_state=array();
+$form_state['values']=array();
+  $types = array('vls' => t('Live Streaming'), 'vconsult' => t('Video Consultation'), 'vconf' => t('Video Conference'), 'v2wvc' => t('2 Way Video Chat'));
+  foreach ($types as $tp => $t) {
+  if(module_exists($tp)){
+  	vwcredits_crsetup($tp);
+
+  	drupal_form_submit($tp.'_admin', $form_state);
+  }
+  }
+  unset($_SESSION['messages']['status']);
+  vwcredits_makedefault();
+
+///drupal_form_submit('vwcredits_admin', $form_state)
+
+}
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_makedefault() {
+  $form = vwcredits_admin2();
+  $types = array('vls' => t('Live Streaming'), 'vconsult' => t('Video Consultation'), 'vconf' => t('Video Conference'), 'v2wvc' => t('2 Way Video Chat'));
+  foreach ($types as $tp => $t) {
+
+
+    $arr =		$form['f_' . $tp];
+
+    foreach ($arr as $nm => $v) {
+      $value = $v['#default_value'];
+
+      variable_set($nm, $value);
+
+    }
+
+
+
+
+
+  }
+  variable_set('vwcredits_minwithdraw', $form['vwcredits_minwithdraw']['#default_value']);
+
+
+  variable_set('vwcredits_withdrawp', $form['vwcredits_withdrawp']['#default_value']);
+
+  variable_set('vwcredits_freecredits', $form['vwcredits_freecredits']['#default_value']);
+
+  $parr = $form['payment'];
+  foreach ($parr as $nm => $v) {
+    $value = $v['#default_value'];
+
+    variable_set($nm, $value);
+
+  }
+  variable_set('vwcredits_saved', 1);
+
+
+
+
+
+
+
+}
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_admin2() {
+
+  $form = array();
+
+  $types = array('vls' => t('Live Streaming'), 'vconsult' => t('Video Consultation'), 'vconf' => t('Video Conference'), 'v2wvc' => t('2 Way Video Chat'));
+
+  $form["vwcredits_freecredits"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Free Credits on registration'), '#default_value' => variable_get("vwcredits_freecredits", '0')
+
+	);
+
+  /*
+   $form['f_'.$type]["vwcredits_croninterval"]=array(
+   '#type'=>'textfield','#size'=>20,'#title'=>t('Cron Interval') ,'#default_value'=>variable_get("vwcredits_{$t}_croninterval",'24')
+   ,'#description'=>t('time interval in hours after which cron job for this module is run. prefer 1 per day ie 24. this cron mainly creates transaction entry from daily transfers')
+   );
+   */
+  foreach ($types as $t => $name) {
+    $type = $t;
+
+
+
+
+
+    $form['f_' . $type]["vwcredits_{$t}_idletime"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Transfer apply interval'), '#default_value' => variable_get("vwcredits_{$t}_idletime", '60'), '#description' => t('after x seconds pending transactions will be applied'));
+
+
+    $form['f_' . $type]["vwcredits_{$t}_mm"] = array(
+		'#type' => 'select', '#title' => t('Module Mode'), '#descriptions' => t('Module mode'), '#default_value' => variable_get("vwcredits_{$t}_mm", 'User')
+		, '#options' => array('Free' => t('Free'), 'Paid' => t('Paid'), 'User' => t('As configured by room owner.'))
+		);
+
+
+    $form['f_' . $type]["vwcredits_{$t}_defaultgracetime"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Grace Period'), '#descriptions' => t('Grace Period'), '#default_value' => variable_get("vwcredits_{$t}_defaultgracetime", '30')
+		, '#description' => t('In seconds')
+		);
+
+    $form['f_' . $type]["vwcredits_{$t}_maxgracetime"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Max Grace Period'), '#descriptions' => t('When owner can change'), '#default_value' => variable_get("vwcredits_{$t}_maxgracetime", '300')
+		, '#description' => t('In seconds')
+
+		);
+    $form['f_' . $type]["vwcredits_{$t}_mingracetime"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Min Grace Period'), '#descriptions' => t('When owner can change'), '#default_value' => variable_get("vwcredits_{$t}_mingracetime", '0')
+		, '#description' => t('In seconds')
+
+		);
+
+
+
+    $form['f_' . $type]["vwcredits_{$t}_ownerscost"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Room Owner\'s cost'), '#default_value' => variable_get("vwcredits_{$t}_ownerscost", '0.1')
+
+		);
+
+    $form['f_' . $type]["vwcredits_{$t}_ownersroomcost"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Cost of using own room'), '#default_value' => variable_get("vwcredits_{$t}_ownersroomcost", '0.1')
+
+		);
+
+    $form['f_' . $type]["vwcredits_{$t}_roomcost"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('User Cost'), '#default_value' => variable_get("vwcredits_{$t}_roomcost", '4.0')
+		);
+
+    $form['f_' . $type]["vwcredits_{$t}_maxroomcost"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Max User Cost'), '#description' => t('When room owner can set'), '#default_value' => variable_get("vwcredits_{$t}_maxroomcost", '10')
+		);
+
+    $form['f_' . $type]["vwcredits_{$t}_minroomcost"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Min User Cost'), '#description' => t('When room owner can set'), '#default_value' => variable_get("vwcredits_{$t}_minroomcost", '0.0')
+		);
+
+    $form['f_' . $type]["vwcredits_{$t}_ownersgain"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Owner\'s gain'), '#default_value' => variable_get("vwcredits_{$t}_ownersgain", '0.75')
+		, '#description' => t('within 0-1'));
+  }
+
+  $form['vwcredits_minwithdraw'] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Min. allowed withdrawal'), '#default_value' => variable_get('vwcredits_minwithdraw', '0.0')
+	);
+
+
+  $form['vwcredits_withdrawp'] = array(
+	'#type' => 'textarea', '#size' => 20, '#title' => t('Withdraw page text'), '#default_value' => variable_get('vwcredits_withdrawp', '')
+	);
+
+
+
+
+
+  $vwcredits_paypal_currency = variable_get('vwcredits_paypal_currency', "USD");
+  $vwcredits_paypal_host = variable_get('vwcredits_paypal_host', "www.paypal.com");
+  $vwcredits_paypal_business = variable_get('vwcredits_paypal_business', '');
+
+  $vwcredits_paypal_currency_option = array(
+	// '' => t('default currency'),  Force a currency to be specified
+    'USD' => t('U.S. Dollar'),
+    'GBP' => t('Pound Sterling'),
+    'EUR' => t('Euro'),
+    'AUD' => t('Australian Dollar'),
+    'CAD' => t('Canadian Dollar'),
+    'JPY' => t('Japanese Yen'),
+    'CHF' => t('Swiss Franc'),
+    'CZK' => t('Czech Koruna'),
+    'DKK' => t('Danish Krone'),
+    'HKD' => t('Hong Kong Dollar'),
+    'HUF' => t('Hungarian Forint'),
+    'NOK' => t('Norwegian Krone'),
+    'NZD' => t('New Zealand Dollar'),
+    'PLN' => t('Polish Zloty'),
+    'SEK' => t('Swedish Krona'),
+    'SGD' => t('Singapore Dollar'),
+	);
+
+
+
+
+
+  // Show these in order of most likely to be changed
+
+
+  $form['payment']['vwcredits_paypal_business'] = array(
+    '#type' => 'textfield',
+    '#title' => t('PayPal Business/Premier Email'),
+    '#default_value' => $vwcredits_paypal_business,
+    '#maxlength' => 100,
+    '#description' => t('The PayPal Business/Premier Email '),
+	);
+
+  $form['payment']['vwcredits_paypal_host'] = array(
+    '#type' => 'textfield',
+    '#title' => t('PayPal Host'),
+    '#default_value' => $vwcredits_paypal_host,
+    '#maxlength' => 100,
+    '#description' => t('The host to send PayPal requests to usually www.paypal.com (when testing use www.paypal.com)'),
+	);
+
+  $form['payment']['vwcredits_paypal_currency'] = array(
+    '#type' => 'select',
+  '#options' => $vwcredits_paypal_currency_option,
+    '#title' => t('Currency'),
+    '#default_value' => $vwcredits_paypal_currency,
+    '#maxlength' => 100,
+	);
+
+
+
+
+
+  // $form['payment']['vwcredits_plimus_authkey']=array('#title'=>t('Plimus data protection Key'),'#type'=>'textfield','#default_value'=>variable_get('vwcredits_plimus_authkey',''),'#description'=>t('Keep blank for none.'));
+
+  $form['payment']['vwcredits_plimus_link'] = array('#title' => t('Plimus store url'), '#type' => 'textfield', '#default_value' => variable_get('vwcredits_plimus_link', 'http://secure.plimus.com/jsp/dev_store1.jsp?developerId=88888'));
+
+
+  return $form;
+
+}
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_uninstall() {
+  ///drupal_uninstall_schema('vwcredits');
+  db_query("delete from {variable} where name like 'vwcredits_%'");
+
+
+}
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_requirements($phase) {
+  $requirements = array();
+  $t = get_t();
+
+  if ($phase == 'runtime') {
+    if (!variable_get('vwcredits_saved', 0)) {
+      $requirements['vwcredits'] = array(
+          'title' => $t('Videowhisper Credit Module Configuration'),
+          'description' => t('Videowhisper Credit Module (vwcredits) configuration not saved !url  and save the configuration.', array('!url' => l(t('click here'), 'admin/config/vwcredits'))),
+          'value' => 1,
+          'severity' => REQUIREMENT_ERROR,
+		);
+    }
+
+    return $requirements;
+  }
+  return $requirements;
+}
+
+
+function vwcredits_enable(){
+	db_query("REPLACE into {role_permission} SET permission='access vwcredits', module='vwcredits', rid = '2';");
+//vwcredits withdraw
+	db_query("REPLACE into {role_permission} SET permission='vwcredits withdraw', module='vwcredits', rid = '2';");
+
+
+}
+
+
+if(!function_exists('vwcredits_crsetup')){
+
+
+	function vwcredits_crsetup($type){
+		$t=$type;
+
+		$form['f_' . $type]["vwcredits_{$t}_idletime"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Transfer apply interval'), '#default_value' => variable_get("vwcredits_{$t}_idletime", '60'), '#description' => t('after x seconds pending transactions will be applied'));
+
+
+		$form['f_' . $type]["vwcredits_{$t}_mm"] = array(
+	'#type' => 'select', '#title' => t('Module Mode'), '#descriptions' => t('Module mode'), '#default_value' => variable_get("vwcredits_{$t}_mm", 'User')
+		, '#options' => array('Free' => t('Free'), 'Paid' => t('Paid'), 'User' => t('As configured by room owner.'))
+		);
+
+
+		$form['f_' . $type]["vwcredits_{$t}_defaultgracetime"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Grace Period'), '#descriptions' => t('Grace Period'), '#default_value' => variable_get("vwcredits_{$t}_defaultgracetime", '30')
+		, '#description' => t('In seconds')
+		);
+
+		$form['f_' . $type]["vwcredits_{$t}_maxgracetime"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Max Grace Period'), '#descriptions' => t('When owner can change'), '#default_value' => variable_get("vwcredits_{$t}_maxgracetime", '300')
+		, '#description' => t('In seconds')
+
+		);
+		$form['f_' . $type]["vwcredits_{$t}_mingracetime"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Min Grace Period'), '#descriptions' => t('When owner can change'), '#default_value' => variable_get("vwcredits_{$t}_mingracetime", '0')
+		, '#description' => t('In seconds')
+
+		);
+
+
+
+		$form['f_' . $type]["vwcredits_{$t}_ownerscost"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Room Owner\'s cost'), '#default_value' => variable_get("vwcredits_{$t}_ownerscost", '0.1')
+
+		);
+
+		$form['f_' . $type]["vwcredits_{$t}_ownersroomcost"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Cost of using own room'), '#default_value' => variable_get("vwcredits_{$t}_ownersroomcost", '0.1')
+
+		);
+
+		$form['f_' . $type]["vwcredits_{$t}_roomcost"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('User Cost'), '#default_value' => variable_get("vwcredits_{$t}_roomcost", '4.0')
+		);
+
+		$form['f_' . $type]["vwcredits_{$t}_maxroomcost"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Max User Cost'), '#description' => t('When room owner can set'), '#default_value' => variable_get("vwcredits_{$t}_maxroomcost", '10')
+		);
+
+		$form['f_' . $type]["vwcredits_{$t}_minroomcost"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Min User Cost'), '#description' => t('When room owner can set'), '#default_value' => variable_get("vwcredits_{$t}_minroomcost", '0.0')
+		);
+
+		$form['f_' . $type]["vwcredits_{$t}_ownersgain"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Owner\'s gain'), '#default_value' => variable_get("vwcredits_{$t}_ownersgain", '0.75')
+		, '#description' => t('within 0-1'));
+
+		$arr=	    $form['f_' . $type];
+		foreach ($arr as $nm => $v) {
+			$value = $v['#default_value'];
+
+			variable_set($nm, $value);
+
+		}
+
+
+
+
+
+	}
+}

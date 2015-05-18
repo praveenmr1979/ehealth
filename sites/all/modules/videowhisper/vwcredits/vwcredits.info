@@ -1,0 +1,16 @@
+; $Id$
+name = VideoWhisper Credits 
+description = Live Streaming integration module, manages instant live video channels.<BR>More details, requirements, installation and usage instructions, latest updates on <a href="http://www.videowhisper.com/?p=Drupal+Live+Video+Streaming+Module" target="_blank">VideoWhisper.com</a>.
+core = 7.x
+dependencies[] = vwrooms
+
+package = "VIDEOWHISPER"
+configure = admin/config/videowhisper/vwcredits
+version = "7.x-1.0"
+
+; Information added by Drupal.org packaging script on 2014-11-15
+version = "7.x-1.5"
+core = "7.x"
+project = "videowhisper"
+datestamp = "1416072782"
+

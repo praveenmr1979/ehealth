@@ -1,0 +1,4242 @@
+<?php
+///format_date(time(),'custom','Y-m-d h:i:s');
+
+ function vwcredits_node_access($node, $op, $account) {
+  $type = is_string($node) ? $node : $node->type;
+if($op!='create'){
+	return NODE_ACCESS_IGNORE;
+
+}
+ 	if(array_search($type,array('vls','v2wvc','vconf','vconsult'))!==false){
+
+ 		if(!user_access('vwcredits create free room')&&!user_access('vwcredits create paid room')){
+
+ 			return NODE_ACCESS_DENY;
+ 		}
+ 		return NODE_ACCESS_ALLOW;
+
+ 	}
+ return NODE_ACCESS_IGNORE;
+ }
+
+
+function vwcredits_user_insert(&$edit, $account, $category) {
+  //add free credits
+
+  $f = (int) variable_get('vwcredits_freecredits', '0');
+  db_query("insert into {vwcredits_credit} set uid=:d_x,bal=:f ", array(':d_x'=>$account->uid,':f'=> $f));
+  ///db_query("insert into {vwcredits_tmpcr} set uid=%d,bal=%f ", $account->uid, $f);
+  db_query("insert into {vwcredits_tmpcr} set uid=:d,bal=:f ", array(':d'=>$account->uid,':f'=> $f));
+
+
+  if ($f > 0) {
+    $comment = t('@t credited on registration.', array('@t' => $f));
+    db_query("insert into {vwcredits_transaction} set credit=:s , trans_type='C',type='freereg',
+    trans_time=now(),uid=:d,comment=:s2",array(':s'=> $f,':d'=> $account->uid,':s2'=> $comment));
+  }
+}
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_user_OLD($op, &$edit, &$account, $category = null) { }
+
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_init() {
+//	error_reporting(0);
+
+  define("VWCREDITS_INSTALLED", "1");
+  define("VWCREDITS_ADMINACT", "1");
+  define("VWCREDITS_PAYMENT", "2");
+  define("VWCREDITS_WITHDRAWAL", "3");
+  define("VWCREDITS_VCONSULT", "1");
+  define("VWCREDITS_V2WVC", "2");
+  define("VWCREDITS_VLS", "3");
+  define("VWCREDITS_OWNERSCOST", "4");
+  define("VWCREDITS_OWNERSROOMCOST", "5");
+  define("VWCREDITS_ROOMCOST", "6");
+  define("VWCREDITS_OWNERSGAIN", "7");
+
+
+  define("VWCREDITS_FREEONREG", "8");
+
+if(isset($_POST)&&array_key_exists('form_id',$_POST)){
+$form_id=filter_xss($_POST['form_id']);
+if($form_id == 'vls_node_form' ||
+$form_id == 'vconsult_node_form' || $form_id == 'v2wvc_node_form' || $form_id == 'vconf_node_form')
+{
+$x=t('Change Mode');
+if($_POST['op']==$x){
+//	print_r($_POST['advanced']['bandwidth']);
+if($form_id=='vls_node_form'){
+	unset($_POST['advanced']['broadcasting']['bandwidth']);
+	unset($_POST['advanced']['broadcasting']['maxbandwidth']);
+
+}else{
+//v2wvc,vconf
+unset($_POST['advanced']['webcam']['bandwidth']);
+unset($_POST['advanced']['webcam']['maxbandwidth']);
+
+}
+
+}
+
+}
+
+
+}
+
+/*
+ * if($form_id == 'vls_node_form' ||
+	$form_id == 'vconsult_node_form' || $form_id == 'v2wvc_node_form' || $form_id == 'vconf_node_form')
+	{
+	echo "form id $form_id";
+	}
+ */
+}
+
+
+
+
+
+
+function vwcredits_theme() {
+
+  $path = drupal_get_path('module', 'vwcredits');
+
+  return array(
+//'vwcredits_transaction_filter' => array('variables' => array('form')),
+
+//'vwcredits_transfer_filter' => array('variables' => array('form')),
+///'vwcredits_creditlist_filter' => array('variables' => array('form')),
+///'vwcredits_withdrawlist_filter' => array('variables' => array('form')),
+///'vwcredits_ipn_filter' => array('variables' => array('form')),
+
+'vwcredits_credit_page' => array('variables' => array('user' => null, 'paypal' => null, 'bal' => null, 'abal' => null, 'min' => null, 'form' => null, 'pending' => null)
+, 'path' => $path . '/templates', 'template' => 'vwcredits_creditpage'),
+'vwcredits_paypage' => array('variables' => array('pay' => null), 'path' => $path . '/templates', 'template' => 'vwcredits_paypage'),
+
+'vwcredits_paypages' => array('variables' => array('data' => null), 'path' => $path . '/templates', 'template' => 'vwcredits_paypages'),
+
+);
+
+
+}
+
+
+
+
+
+function theme_vwcredits_ipn_filter($variables) {
+  $form = $variables['0'];
+  return drupal_render($form);
+
+
+}
+
+
+
+
+function theme_vwcredits_transaction_filter($variables) {
+  $form = $variables['0'];
+
+  return drupal_render_children($form);
+
+
+}
+
+
+
+function theme_vwcredits_transfer_filter($variables) {
+  $form = $variables['0'];
+
+  return drupal_render_children($form);
+
+
+
+}
+
+
+
+
+
+function theme_vwcredits_creditlist_filter($variables) {
+  $form = $variables['0'];
+
+
+  return drupal_render_children($form);
+
+
+}
+
+
+
+
+function theme_vwcredits_withdrawlist_filter($variables) {
+  $form = $variables['0'];
+
+
+  return drupal_render_children($form);
+
+
+}
+
+
+
+
+
+function vwcredits_rooms() {
+  global $user;
+  if (!user_access('administer vwcredits')) {
+    $where = " uid=$user->uid ";
+  }
+
+  // TODO Please convert this statement to the D7 database API syntax.
+  $fq = db_query("select * from {node} where type in ('vls','vconsult','v2wvc','vconf') $where");
+  $rooms = array();
+  while ($f = $fq->fetchObject()) {
+
+    $rooms[$f->title] = $f->title;
+
+  }
+  print drupal_json_encode($rooms);
+  exit;
+
+}
+
+
+
+
+function vwcredits_menu() {
+
+  $items = array();
+
+
+
+  $items['admin/config/videowhisper/vwcredits'] = array(
+    'title' => t('VideoWhisper Credit'),
+    'description' => t('VideoWhispers Credit Setting'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('vwcredits_admin'),
+    'access arguments' => array('administer vwcredits'),
+    'type' => MENU_NORMAL_ITEM,
+	);
+
+  $items['vwcredits/broadcastform'] = array(
+   'page callback' => 'vwcredits_broadcastform',
+   'type' => MENU_CALLBACK,
+   'access arguments' => array('access vwcredits'),
+	);
+
+
+  $items['vwcredits/addcredit/%'] = array(
+   'page callback' => 'vwcredits_admin_addcr',
+  	'page arguments' => array(2),
+   'type' => MENU_CALLBACK,
+   'access arguments' => array('administer vwcredits'),
+	);
+
+
+
+  $items['vwcredits/packages'] = array(
+   'title' => t('Billing packages'),
+   'page callback' => 'vwcredits_pay_adminlist',
+   'type' => MENU_NORMAL_ITEM,
+   'access arguments' => array('administer vwcredits'),
+	);
+
+  ///	$items['vwcredits']=array("type"=>MENU_NORMAL_ITEM,'title'=>t('Balance'),'page callback'=>);
+
+
+  $items['vwcredits/packages/adminlist'] = array(
+   'title' => t('List packages'),
+   'page callback' => 'vwcredits_pay_adminlist',
+   'type' => MENU_DEFAULT_LOCAL_TASK,
+   'access arguments' => array('administer vwcredits'),
+	);
+
+
+  $items['vwcredits/packages/create'] = array(
+   'title' => t('Create Package'),
+   'page callback' => 'vwcredits_create_package',
+   'page arguments' => array(3),
+
+	'type' => MENU_LOCAL_TASK,
+   'access arguments' => array('administer vwcredits'),
+	);
+
+
+
+
+  $items['vwcredits/packages/list'] = array(
+  'title' => t('Add Credit to a/c'),
+   'page callback' => 'vwcredits_pay_list',
+   'type' => MENU_CALLBACK,
+    'access callback' => true,
+	);
+  /*
+
+   $items['vwcredits/packagelist']=array(
+   'title'=>t('Add Credit'),
+   'page callback'=>'vwcredits_pay_list',
+   'type'=>MENU_NORMAL_ITEM,
+   'access arguments'=>array('access vwcredits'),
+   );
+   */
+
+  $items['vwcredits/packages/pay/%'] = array(
+   'page callback' => 'vwcredits_pay_page',
+	'page arguments' => array(3),
+	'title' => t('Add Credit to your account'),
+   'type' => MENU_CALLBACK,
+    'access arguments' => array('access vwcredits'),
+	);
+
+  $items['vwcredits/pay/plimus/%'] = array(
+   'page callback' => 'vwcredits_pay_plimus',
+	'page arguments' => array(3),
+   'type' => MENU_CALLBACK,
+    'access arguments' => array('access vwcredits'),
+	);
+  $items['vwcredits/pay/paypal/%'] = array(
+   'page callback' => 'vwcredits_pay_paypal',
+	'page arguments' => array(3),
+   'type' => MENU_CALLBACK,
+    'access arguments' => array('access vwcredits'),
+	);
+
+
+
+
+  $items['vwcredits/payments'] = array(
+	   'page callback' => 'vwcredits_creditlist',
+	   'type' => MENU_NORMAL_ITEM,
+		'title' => t('Balance and Transactions'),
+	  'access arguments' => array('access vwcredits'),
+
+	);
+
+
+
+  $items['vwcredits/payments/ipns'] = array(
+   'page callback' => 'vwcredits_ipns',
+   'type' => MENU_LOCAL_TASK,
+	'title' => t('IPNs'),
+  'access arguments' => array('administer vwcredits'),
+
+	);
+
+  $items['vwcredits/payments/transactions'] = array(
+   'page callback' => 'vwcredits_transactions',
+   'type' => MENU_LOCAL_TASK,
+	'title' => t('Transactions'),
+  'access arguments' => array('access vwcredits'),
+
+	);
+  /*
+   $items['vwcredits/payments/transfers']=array(
+   'page callback'=>'vwcredits_transfers',
+   'type'=>MENU_LOCAL_TASK,
+   'title'=>t('Transfers'),
+   'access arguments'=>array('access vwcredits'),
+
+   );*/
+
+
+
+  $items['vwcredits/payments/creditlist'] = array(
+   'page callback' => 'vwcredits_creditlist',
+   'type' => MENU_DEFAULT_LOCAL_TASK,
+	'title' => t('Credits'),
+ 'access arguments' => array('access vwcredits'),
+
+	);
+
+  $items['vwcredits/payments/withdrawlist'] = array(
+   'page callback' => 'vwcredits_withdrawlist',
+   'type' => MENU_LOCAL_TASK,
+	'title' => t('Withdrawals'),
+  'access arguments' => array('administer vwcredits'),
+
+	);
+
+  $items['vwcredits/payments/packagelist'] = array(
+	  'title' => t('Add Credit'),
+	   'page callback' => 'vwcredits_pay_list',
+	   'type' => MENU_LOCAL_TASK,
+	    'access callback' => true,
+	);
+
+
+
+
+
+  $items['vwcredits/ipn/%'] = array(
+   'page callback' => 'vwcredits_ipn',
+   'type' => MENU_CALLBACK,
+	'page arguments' => array(2),
+  'access arguments' => array('administer vwcredits'),
+
+	);
+
+
+  $items['vwcredits/withdrawprocess'] = array(
+   'page callback' => 'vwcredits_withdrawprocess',
+   'type' => MENU_CALLBACK,
+  'access arguments' => array('administer vwcredits'),
+
+	);
+
+
+  $items['vwcredits/paypalipn'] = array(
+   'page callback' => 'vwcredits_paypal_ipn',
+   'type' => MENU_CALLBACK,
+   'access callback' => TRUE,
+	);
+
+  $items['vwcredits/plimusipn'] = array(
+   'page callback' => 'vwcredits_plimus_ipn',
+   'type' => MENU_CALLBACK,
+   'access callback' => TRUE,
+	);
+
+
+  $items['vwcredits/rooms'] = array('type' => MENU_CALLBACK, 'page callback' => 'vwcredits_rooms', 'access arguments' => array('access content'));
+
+  return $items;
+
+}
+
+
+
+
+function vwcredits_permission() {
+  return array(
+    'administer vwcredits' => array(
+      'title' => t('administer vwcredits'),
+      'description' => t('administer credits'),
+    ),
+    'vwcredits owner set cost' => array(
+      'title' => t('vwcredits owner set cost'),
+      'description' => t('owner set cost'),
+    ),
+    'vwcredits owner set grace' => array(
+      'title' => t('vwcredits owner set grace'),
+      'description' => t('owner set grace'),
+    ),
+    'access vwcredits' => array(
+      'title' => t('access vwcredits'),
+      'description' => t('access vwcredits'),
+    ),
+    'vwcredits withdraw' => array(
+      'title' => t('vwcredits withdraw'),
+      'description' => t('withdraw'),
+    ),
+    'vwcredits override cost' => array(
+      'title' => t('vwcredits override cost'),
+      'description' => t( 'override cost'),
+    ),
+    'vwcredits create free room' => array(
+      'title' => t('vwcredits create free room'),
+      'description' => t('create free room'),
+    ),
+  		'vwcredits create paid room' => array(
+
+  				'title' => t('vwcredits create paid room'),
+
+  				'description' => t('create paid room'),
+
+  		),
+
+
+  );
+
+}
+
+
+
+
+
+
+
+
+function vwcredits_admin($form, &$form_state) {
+  $form = array();
+
+  $types = array('vls' => t('Live Streaming'), 'vconsult' => t('Video Consultation'), 'vconf' => t('Video Conference'), 'v2wvc' => t('2 Way Video Chat'));
+  foreach ($types as $tp => $t) {
+    if (!module_exists($tp)) {
+      unset($types[$tp]);
+    }
+
+  }
+  $form["vwcredits_freecredits"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Free Credits on registration'), '#default_value' => variable_get("vwcredits_freecredits", '0')
+
+	);
+
+  /*
+   $form['f_'.$type]["vwcredits_croninterval"]=array(
+   '#type'=>'textfield','#size'=>20,'#title'=>t('Cron Interval') ,'#default_value'=>variable_get("vwcredits_{$t}_croninterval",'24')
+   ,'#description'=>t('time interval in hours after which cron job for this module is run. prefer 1 per day ie 24. this cron mainly creates transaction entry from daily transfers')
+   );
+   */
+  foreach ($types as $t => $name) {
+    if (!module_exists($t)) {
+      continue;
+    }
+    $type = $t;
+
+
+
+
+    $form['f_' . $type] = array('#type' => 'fieldset', '#title' => t($name), '#collapsible' => true, '#collapsed' => true, '#tree' => false);
+
+
+
+
+    $form['f_' . $type]["vwcredits_{$t}_idletime"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Transfer apply interval'), '#default_value' => variable_get("vwcredits_{$t}_idletime", '60'), '#description' => t('after x seconds pending transactions will be applied'));
+
+
+    $form['f_' . $type]["vwcredits_{$t}_mm"] = array(
+		'#type' => 'select', '#title' => t('Module Mode'), '#descriptions' => t('Module mode'), '#default_value' => variable_get("vwcredits_{$t}_mm", 'User')
+		, '#options' => array('Free' => t('Free'), 'Paid' => t('Paid'), 'User' => t('As configured by room owner'))
+		);
+
+
+    $form['f_' . $type]["vwcredits_{$t}_defaultgracetime"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Grace Period'), '#descriptions' => t('Grace Period'), '#default_value' => variable_get("vwcredits_{$t}_defaultgracetime", '30')
+		, '#description' => t('In seconds')
+		);
+
+    $form['f_' . $type]["vwcredits_{$t}_maxgracetime"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Max Grace Period'), '#descriptions' => t('When owner can change'), '#default_value' => variable_get("vwcredits_{$t}_maxgracetime", '300')
+		, '#description' => t('In seconds')
+
+		);
+    $form['f_' . $type]["vwcredits_{$t}_mingracetime"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Min Grace Period'), '#descriptions' => t('When owner can change'), '#default_value' => variable_get("vwcredits_{$t}_mingracetime", '0')
+		, '#description' => t('In seconds')
+
+		);
+
+
+
+    $form['f_' . $type]["vwcredits_{$t}_ownerscost"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Room Owner\'s cost'), '#default_value' => variable_get("vwcredits_{$t}_ownerscost", '0.1')
+
+		);
+
+    $form['f_' . $type]["vwcredits_{$t}_ownersroomcost"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Cost of using own room'), '#default_value' => variable_get("vwcredits_{$t}_ownersroomcost", '0.1')
+
+		);
+
+    $form['f_' . $type]["vwcredits_{$t}_roomcost"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('User Cost'), '#default_value' => variable_get("vwcredits_{$t}_roomcost", '4.0')
+		);
+
+    $form['f_' . $type]["vwcredits_{$t}_maxroomcost"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Max User Cost'), '#description' => t('When room owner can set'), '#default_value' => variable_get("vwcredits_{$t}_maxroomcost", '10')
+		);
+
+    $form['f_' . $type]["vwcredits_{$t}_minroomcost"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Min User Cost'), '#description' => t('When room owner can set'), '#default_value' => variable_get("vwcredits_{$t}_minroomcost", '0.0')
+		);
+
+    $form['f_' . $type]["vwcredits_{$t}_ownersgain"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Owner\'s gain'), '#default_value' => variable_get("vwcredits_{$t}_ownersgain", '0.75')
+		, '#description' => t('within 0-1'));
+  }
+
+  $form['vwcredits_minwithdraw'] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Min. allowed withdrawal'), '#default_value' => variable_get('vwcredits_minwithdraw', '0.0')
+	);
+
+
+  $form['vwcredits_withdrawp'] = array(
+	'#type' => 'textarea', '#size' => 20, '#title' => t('Withdraw page text'), '#default_value' => variable_get('vwcredits_withdrawp', '')
+	);
+
+
+
+
+
+  $vwcredits_paypal_currency = variable_get('vwcredits_paypal_currency', "USD");
+  $vwcredits_paypal_host = variable_get('vwcredits_paypal_host', "www.paypal.com");
+  $vwcredits_paypal_business = variable_get('vwcredits_paypal_business', '');
+
+  $vwcredits_paypal_currency_option = array(
+	// '' => t('default currency'),  Force a currency to be specified
+    'USD' => t('U.S. Dollar'),
+    'GBP' => t('Pound Sterling'),
+    'EUR' => t('Euro'),
+    'AUD' => t('Australian Dollar'),
+    'CAD' => t('Canadian Dollar'),
+    'JPY' => t('Japanese Yen'),
+    'CHF' => t('Swiss Franc'),
+    'CZK' => t('Czech Koruna'),
+    'DKK' => t('Danish Krone'),
+    'HKD' => t('Hong Kong Dollar'),
+    'HUF' => t('Hungarian Forint'),
+    'NOK' => t('Norwegian Krone'),
+    'NZD' => t('New Zealand Dollar'),
+    'PLN' => t('Polish Zloty'),
+    'SEK' => t('Swedish Krona'),
+    'SGD' => t('Singapore Dollar'),
+	);
+
+
+
+
+
+  // Show these in order of most likely to be changed
+
+  $form['payment'] = array('#type' => 'fieldset', '#title' => t('Payment Servers'), '#collapsed' => true, '#collapsible' => true, '#tree' => false);
+
+  $form['payment']['vwcredits_paypal_business'] = array(
+    '#type' => 'textfield',
+    '#title' => t('PayPal Business/Premier Email'),
+    '#default_value' => $vwcredits_paypal_business,
+    '#maxlength' => 100,
+    '#description' => t('The PayPal Business/Premier Email '),
+	);
+
+  $form['payment']['vwcredits_paypal_host'] = array(
+    '#type' => 'textfield',
+    '#title' => t('PayPal Host'),
+    '#default_value' => $vwcredits_paypal_host,
+    '#maxlength' => 100,
+    '#description' => t('The host to send PayPal requests to usually www.paypal.com (when testing use www.paypal.com)'),
+	);
+
+  $form['payment']['vwcredits_paypal_currency'] = array(
+    '#type' => 'select',
+  '#options' => $vwcredits_paypal_currency_option,
+    '#title' => t('Currency'),
+    '#default_value' => $vwcredits_paypal_currency,
+    '#maxlength' => 100,
+	);
+
+
+
+
+
+  // $form['payment']['vwcredits_plimus_authkey']=array('#title'=>t('Plimus data protection Key'),'#type'=>'textfield','#default_value'=>variable_get('vwcredits_plimus_authkey',''),'#description'=>t('Keep blank for none.'));
+
+  $form['payment']['vwcredits_plimus_link'] = array('#title' => t('Plimus store url'), '#type' => 'textfield', '#default_value' => variable_get('vwcredits_plimus_link', 'http://secure.plimus.com/jsp/dev_store1.jsp?developerId=969462'));
+
+  $form['payment']['ppipn'] = array( '#markup' => '<ul><li>Paypal IPN:' . url('vwcredits/paypalipn', array('absolute' => true)) . '</li><li>Plimus IPN:' . url('vwcredits/plimusipn', array('absolute' => true)) . '</li></ul>');
+
+  $form['#validate'][] = 'vwcredits_admin_valid';
+  $form['vwcredits_saved'] = array('#type' => 'hidden', '#value'=>1);
+
+  return system_settings_form($form);
+
+
+}
+
+
+
+
+
+function vwcredits_admin_valid($form, &$form_state) {
+  $types = array('vls' => t('Live Streaming'), 'vconsult' => t('Video Consultation'), 'vconf' => t('Video Conference'), 'v2wvc' => t('2 Way Video Chat'));
+  foreach ($types as $tp => $t) {
+    if (!module_exists($tp)) {
+      unset($types[$tp]);
+    }
+
+  }
+  foreach ($types as $tp => $t) {
+    if ($form_state['values']["vwcredits_{$tp}_ownersgain"] < 0 || $form_state['values']["vwcredits_{$tp}_ownersgain"] > 1) {
+      form_set_error("vwcredits_{$tp}_ownersgain", t('Invalid value should be within 0-1'));
+
+    }
+  }
+}
+
+
+
+
+
+
+/**
+ * Implements hook_node_view().
+ */
+function vwcredits_node_view($node, $view_mode = 'full') {
+	global $user;
+	if(!vwcredits_nodeapi_old($node, $op)){
+		return;
+	}
+  $fr = db_query("select * from {vwcredits_cost} where room_nid=".(int) $node->nid)->fetchObject();
+
+  if ($fr->roomcost > 0) {
+$y=(int)$fr->graceperiod;
+    $abal = db_query("select bal from {vwcredits_tmpcr} where uid= ".(int)$user->uid)->fetchField();
+    $bal = db_query("select bal from {vwcredits_credit} where uid= ".(int) $user->uid)->fetchField();
+    $cur = '';
+    $node->content['balance'] = array('#markup' => t("<br/>Your Balance: @a, Available of : @b total credits,<br/> This room charges you  @c credits per minute or @cc per hour starting @y seconds after entering", array('@a' => $cur . ' ' . $bal, '@b' => $cur . ' ' . $abal, '@c' => $cur . ' ' . $fr->roomcost,'@y'=>$y,'@cc' => $cur . ' ' . $fr->roomcost*60)), '#weight' => 1);
+
+
+  }
+
+}
+
+/**
+ * Implements hook_node_load().
+ */
+function vwcredits_node_load($nodes, $types) {
+
+foreach($nodes as $id=>$node){
+
+	if(!vwcredits_nodeapi_old($node, $types)){
+		return;
+	}
+
+	$f = db_query("select * from {vwcredits_cost} where room_nid=".(int) $node->nid)->fetchAssoc();
+  $f['roommode'] = $f['room_nid'] ? 'P' : 'F';
+  if (!$node->nid) {
+    if (!user_access('vwcredits create free room')) {
+
+      $f['roommode'] = 'P';
+    }
+  }
+  /*
+  $f['roomcost']=$f['roomcost'];
+  $f['ownerscost']=$f['ownerscost'];
+  $f['ownersroomcost']=$f['ownersroomcost'];
+  $f['ownersgain']=$f['ownersgain'];
+*/
+foreach((array)$f as $k=>$v){
+$nodes[$id]->$k=$v;
+}
+
+}
+
+  //			echo "roomnode ".$f['roommode'];
+
+
+}
+
+/**
+ * Implements hook_node_delete().
+ */
+function vwcredits_node_delete($node) {
+	if(!vwcredits_nodeapi_old($node, "")){
+		return;
+	}
+
+	db_query("update {vwcredits_transaction} set applied=1, app_time=now() where room_nid=".(int) $node->nid);
+  db_query("delete from {vwcredits_cost} where room_nid=".(int) $node->nid);
+}
+
+
+/**
+ * Implements hook_node_update().
+ */
+function vwcredits_node_update($node) {
+
+	if(!vwcredits_nodeapi_old($node, "")){
+		return;
+	}
+
+  //'vwcredits override cost','vwcredits create free room'
+
+  $type = $node->type;
+  if (user_access('vwcredits owner set grace') || user_access('administer vwcredits')) {
+    $gr = $node->graceperiod;
+
+  }
+  else {
+
+    $gr =		variable_get('vwcredits_' . $type . '_defaultgracetime', '0.0');
+
+  }
+
+  if (user_access('vwcredits owner set cost') || user_access('administer vwcredits')) {
+    $rc = $node->roomcost;
+
+  }
+  else {
+    $rc = variable_get('vwcredits_' . $type . '_roomcost', '0.0');
+  }
+  $oc = variable_get('vwcredits_' . $type . '_ownerscost', '0.0');
+  $orc = variable_get('vwcredits_' . $type . '_ownersroomcost', '0.0');
+
+  $gn = variable_get('vwcredits_' . $type . '_ownersgain', 0);
+  if ($node->roommode == 'F' && user_access('vwcredits create free room')) {
+    return;
+    $gn = $gr = $oc = $orc = $rc = 0;
+
+  }
+  if ($node->roommode == 'F') {
+    return;
+  }
+  db_query("replace into {vwcredits_cost} set room_nid=:d1,uid=:d2,roomcost=:d3,ownerscost=:d4,
+  ownersroomcost=:d5,graceperiod=:d6,ownersgain=:d7,room=:d8",
+ array(':d1'=>  $node->nid, ':d2'=>$node->uid, ':d3'=>$rc,':d4'=> $oc,':d5'=> $orc/60,':d6'=> $gr,':d7'=> $gn,':d8'=> $node->room));
+}
+
+/**
+ * Implements hook_node_insert().
+ */
+function vwcredits_node_insert($node) {
+	if(!vwcredits_nodeapi_old($node, "")){
+		return;
+	}
+
+
+
+  //'vwcredits override cost','vwcredits create free room'
+
+  $type = $node->type;
+  if (user_access('vwcredits owner set grace') || user_access('administer vwcredits')) {
+    $gr = $node->graceperiod;
+
+  }
+  else {
+
+    $gr =		variable_get('vwcredits_' . $type . '_defaultgracetime', '0.0');
+
+  }
+
+  if (user_access('vwcredits owner set cost') || user_access('administer vwcredits')) {
+    $rc = $node->roomcost;
+
+  }
+  else {
+    $rc = variable_get('vwcredits_' . $type . '_roomcost', '0.0');
+  }
+  $oc = variable_get('vwcredits_' . $type . '_ownerscost', '0.0');
+  $orc = variable_get('vwcredits_' . $type . '_ownersroomcost', '0.0');
+
+  $gn = variable_get('vwcredits_' . $type . '_ownersgain', 0);
+  if ($node->roommode == 'F' && user_access('vwcredits create free room')) {
+    return;
+    $gn = $gr = $oc = $orc = $rc = 0;
+
+  }
+  if ($node->roommode == 'F') {
+    return;
+  }
+
+  db_query("replace into {vwcredits_cost} set room_nid=:d1,uid=:d2,roomcost=:d3,ownerscost=:d4,
+  ownersroomcost=:d5,graceperiod=:d6,ownersgain=:d7,room=:d8",
+  array(':d1'=>  $node->nid, ':d2'=>$node->uid, ':d3'=>$rc,':d4'=> $oc,':d5'=> $orc,':d6'=> $gr,':d7'=> $gn,':d8'=> $node->room));
+
+
+///  db_query("replace into {vwcredits_cost} set room_nid=%d,uid=%d,roomcost=%f,ownerscost=%f,ownersroomcost=%f,graceperiod=%f,ownersgain=%f,room='%s'", $node->nid,
+//$node->uid, $rc, $oc, $orc, $gr, $gn, $node->room);
+
+
+}
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_nodeapi_old(&$node, $op, $a3  = NULL, $a4 = NULL) {
+  // TODO Remaining code in this function needs to be moved to the appropriate new hook function.
+  global $user;
+///  error_reporting(0);
+
+  $types = array('vls', 'vconsult', 'v2wvc', 'vconf');
+  if (!in_array($node->type, $types)) {
+    return false;
+  }
+  return true;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*cs*/
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_credit_page() {
+	global $user;
+	$uid = (int) $user->uid;
+
+	if ($_GET['cancel']) {
+		db_query("lock tables  {vwcredits_wt} write ,{vwcredits_tmpcr} write  ");
+
+		// TODO Please convert this statement to the D7 database API syntax.
+		$fw = db_query("select * from {vwcredits_wt} where uid=$uid")->fetchObject();
+		if ($fw->wt) {
+
+			// TODO Please convert this statement to the D7 database API syntax.
+			db_query("update {vwcredits_tmpcr} set bal=bal+$fw->wt where uid=$uid");
+			// TODO Please convert this statement to the D7 database API syntax.
+			db_query("delete from {vwcredits_wt} where uid=$uid");
+		}
+
+		vwrooms_unlock_tables();
+		drupal_set_message(t('Withdraw Request canceled.'), 'status');
+	}
+
+
+
+	// TODO Please convert this statement to the D7 database API syntax.
+	$fc = db_query("select u.name ,v.bal,v.paypal from {vwcredits_credit} v inner join {users} u on (u.uid=v.uid) where u.uid=$uid")->fetchObject();
+	$bal = $fc->bal;
+	// TODO Please convert this statement to the D7 database API syntax.
+	$abal = db_query("select bal from {vwcredits_tmpcr}  where uid=$uid")->fetchField();
+	$pending = false;
+	$form = false;
+	$cur = variable_get("vwcredits_paypal_currency", 'USD');
+	$min = variable_get("vwcredits_minwithdraw", 1);
+
+	// TODO Please convert this statement to the D7 database API syntax.
+	$fw = db_query("select * from {vwcredits_wt} where uid=$uid")->fetchObject();
+	if ($fw->wt) {
+		$pending = $cur . ' ' . $fw->wt;
+
+	}
+	else if (user_access('vwcredits withdraw')) {
+
+		if ($abal >= $min) {
+			$form = drupal_render(drupal_get_form('vwcredits_withdraw_form'));
+		}
+
+	}
+	else {
+		$min = false;
+	}
+	if ($min) {
+		$min = $cur . ' ' . $min;
+	}
+	$bal = $cur . ' ' . $bal;
+	$abal = $cur . ' ' . $abal;
+
+
+	return theme('vwcredits_credit_page', array('user' => $fc->uname, 'paypal' => $fc->paypal, 'bal' => $bal, 'abal' => $abal, 'min' => $min, 'form' => $form, 'pending' => $pending));
+
+}
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_withdraw_form_submit($form, &$form_state) {
+	$v = &$form_state['values'];
+	global $user;
+	db_query("lock tables {vwcredits_credit} write,{vwcredits_wt} write ,{vwcredits_tmpcr} write  ");
+
+
+	$fw = db_query("select bal from {vwcredits_tmpcr} where uid=". $user->uid)->fetchObject();
+	if ($fw->bal > $v['amt']) {
+
+		db_query("update {vwcredits_credit} set paypal=:s", array(':s'=>$v['paypal']));
+		db_query("update {vwcredits_tmpcr} set bal=bal-:s1  where uid=:s2",array(':s1'=> $v['amt'],':s2'=> $user->uid));
+
+		db_query("insert {vwcredits_wt} set wt=:s1,uid=:s2,wtime=now(),wtxt=:s3",array(':s1'=>$v['amt'],
+		':s2'=>$user->uid, ':s3'=>check_plain($v['txt'])));
+
+		///	db_query("insert {vwcredits_transfer} set set  acost=%f,last_time=now()  ,applied=0,context='%s',");
+
+
+		$cur = variable_get("vwcredits_paypal_currency", 'USD');
+		drupal_get_messages('status', true);
+		drupal_set_message(t('Amount @a queued for withdrawal', array('@a' => $cur . ' ' . $v['amt'])));
+
+
+
+	}
+
+
+
+	vwrooms_unlock_tables();
+
+}
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_withdraw_form_validate($form, &$form_state) {
+	global $user;
+	$v = &$form_state['values'];
+	$min = variable_get("vwcredits_minwithdraw", 0);
+	$cur = variable_get("vwcredits_paypal_currency", 'USD');
+
+	if ($v['amt'] < $min) {
+
+		form_set_error('amt', t('Minimum withdrawal amount @a', array('@a' => $cur . $min)));
+		return;
+	}
+
+	$fw =	db_query("select * from {vwcredits_wt} where uid=". $user->uid)->fetchObject();
+	if ($fw->uid) {
+
+		form_set_error("amt", t('Previous Withdraw Request already pending.'));
+		return;
+	}
+
+
+	$fw = db_query("select bal from {vwcredits_tmpcr} where uid=". $user->uid)->fetchObject();
+	if ($fw->bal < $v['amt']) {
+
+		form_set_error('amt', "Amount more than account balance of @a", array('@a' => $v['amt']));
+	}
+
+
+}
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_withdraw_form($form) {
+	$form = array();
+	$form['paypal'] = array('#title' => t('Paypal account'), '#type' => 'textfield', '#required' => true, '#description' => t('Your paypal account id where you want to receive the funds.'));
+	$form['amt'] = array('#title' => t('Credits to withdraw'), '#type' => 'textfield', '#required' => true);
+	//$form['']
+	$form['txt'] = array('#title' => t('Message'), '#type' => 'textfield');
+	$form['submit'] = array('#type' => 'submit', '#value' => t('Submit'));
+	return $form;
+}
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_withdrawprocess() {
+	$uid = (int) $_GET['uid'];
+	$user = user_load($uid);
+
+	db_query("lock tables {vwcredits_credit} write,{vwcredits_wt} write ,{vwcredits_transaction} write  ");
+
+	$fu = db_query("select * from {vwcredits_credit} where uid=". $uid)->fetchObject();
+	if (!$fu->uid) {
+		echo "error:no account";
+		exit;
+
+	}
+
+
+	$f = db_query("select * from  {vwcredits_wt} where uid=". $uid)->fetchObject();
+	if (!$f->uid) {
+		echo "error:no account";
+		exit;
+	}
+	if (!$f->wt) {
+		echo "error:no request";
+		exit;
+	}
+
+
+	$cur = variable_get('vwcredits_paypal_currency', 'USD');
+	$comment = t('withdraw @r to paypal a/c @c ', array('@r' => $f->wt, '@c' => $f->paypal));
+	// TODO Please convert this statement to the D7 database API syntax.
+	db_query("insert into {vwcredits_transaction} set trans_type='D', type='withdraw',amt='$cur.$f->wt',credit=$f->wt,uid=$uid,
+	comment=:s1,context=:s2,trans_time=now()", array(':s1'=>$comment,':s2'=> 'withdraw $f->paypal $user->name'));
+	// TODO Please convert this statement to the D7 database API syntax.
+	db_query("update {vwcredits_credit} set bal=bal-$f->wt where uid=". $uid);
+	db_query("delete from {vwcredits_wt} where uid=". $uid);
+	vwrooms_unlock_tables();
+	echo "Withdrawal processed.";
+	exit;
+
+
+}
+
+function vwrooms_query($q,$a=array()){
+if(count($a)){
+	foreach($a as $k=>$v){
+
+	}
+}
+
+}
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_withdrawlist() {
+	$url = url('vwcredits/withdrawprocess', array('absolute' => true));
+	drupal_add_js('
+	$=jQuery.noConflict();
+
+$(function(){
+$(".vwcredits-checkbox").click(function(){
+var checked=$(this).attr("checked");
+var box=$(this);
+if(checked){
+if(!confirm("Confirm to proceed")){
+$(this).attr("checked","");
+return;
+}
+var val=$(this).attr("value");
+
+$.ajax({
+type: "GET",
+data: {js:1,uid:val},
+url: "' . $url . '",
+success: function (response) {
+alert(response);
+if(response.match(/^error/)){
+$(box).attr("disabled","");
+
+return;
+}
+
+$(box).attr("disabled","disabled");
+}
+});
+
+}//checked
+
+});
+
+});
+
+
+
+
+
+
+', array('type' => 'inline'));
+
+
+
+
+	if ($_COOKIE['vwcredits_withdrawlist_user']) {
+		$where[] = "  u.name like :uname or u.mail like :umail ";
+		$args['uname'] = '%'.$_COOKIE['vwcredits_withdrawlist_user'].'%';
+		$args['umail'] = '%'.$_COOKIE['vwcredits_withdrawlist_user'].'%';
+
+	}
+
+
+	$where[] = 1;
+
+	$headers = array(
+	array('data' => t('User'), 'field' => 'name'),
+	array('data' => t('Email'), 'field' => 'mail'),
+	array('data' => t('Available Credits'), 'field' => 'abal'),
+	array('data' => t('Withdraw'), 'field' => 'wt'),
+	array('data' => t('With. Time'), 'field' => 'wtime'),
+	array('data' => t('Paypal a/c') ),
+	array('data' => t('Action')),
+
+
+
+
+	);
+
+	$limit = 50;
+
+	$where = " where " . implode(" and ", $where);
+
+	$sql = "select u.name as name,u.mail,v.paypal ,v.bal,x.wt,x.wtxt,x.wtime,w.bal as abal, u.uid as uid  from {vwcredits_credit} v inner join {users} u on(u.uid=v.uid)  inner join {vwcredits_tmpcr} w on (w.uid=v.uid) inner join {vwcredits_wt} x on (x.uid=v.uid)    $where ";
+	$csql = " select count(*) from {vwcredits_credit} v inner join {users} u on(u.uid=v.uid)  inner join {vwcredits_tmpcr} w on (w.uid=v.uid) inner join {vwcredits_wt} x on (x.uid=v.uid)    $where  ";
+
+
+	if (!$_GET['order']) {
+		$df= " order by x.wtime desc ";
+	}
+	else {
+///		$sql .= tablesort_sql($headers);
+	}
+$q=vwrooms_pager_query($sql, $csql,$args, $header,$limit,$df);
+
+	$data = array();
+	while ($f = $q->fetchObject()) {
+		$chkbox = "";
+		$wtime = "";
+		if ($f->wtxt) {
+			$wt = '<a href="javascript:;" class="tooltip">' . $f->wt . '<span>' . $f->wtxt . '</span></a>';
+		}
+		else {
+			$wt = $f->wt;
+		}
+		///		$wt="<a href='#' title='::$f->wtxt' >".$f->wt."</a>";
+
+		$wtime = $f->wtime;
+		$chkbox = '<input type="checkbox" class="vwcredits-checkbox" value="' . $f->uid . '"/>';
+
+		$data[] = array(l($f->name, "user/$f->uid"), $f->mail, $f->abal, $wt, $wtime, $f->paypal, $chkbox);
+	}
+
+	return drupal_render(drupal_get_form('vwcredits_withdrawlist_filter') ). theme('table', array('header' => $headers, 'rows' => $data)) .vwrooms_pager($limit);
+
+
+}
+
+
+
+
+
+function vwcredits_withdrawlist_filter($form) {
+
+	$form = array();
+	$form['f'] = array('#type' => 'fieldset', '#title' => t('Filter'), '#collapsible' => true, '#collapsed' => true);
+	$form['f']['user'] = array('#type' => 'textfield', '#autocomplete_path' => 'user/autocomplete', '#title' => t('User'), '#default_value' => $_COOKIE['vwcredits_creditlist_user'], '#description' => t('Partial match for User email or username'), '#default_value' => $_COOKIE['vwcredits_withdrawlist_user']);
+
+	///$form['f']['#redirect']='vwcredits/payments/withdrawlist';
+	$form['f']['submit'] = array('#type' => 'submit', '#value' => t('Filter'));
+	return $form;
+
+
+}
+
+
+
+
+
+
+function vwcredits_withdrawlist_filter_submit($form, &$form_state) {
+	$v = &$form_state['values'];
+	setcookie('vwcredits_withdrawlist_user', trim($v['user']));
+
+
+
+
+}
+
+
+
+
+
+
+function vwcredits_ipn($id) {
+
+	$f = db_query("select * from {vwcredits_ipn} where id=". $id)->fetchAssoc();
+	if (!$f['id']) {
+		return t('Not found');
+	}
+	$str = "<table cellspacing='5' cellpadding='5' >";
+	foreach ($f as $id => $c) {
+
+		$str .= "<tr><th>$id</th><td>$c</td></tr>";
+	}
+	$str .= '<tr><td colspan="2"><button onclick="history.go(-1)">Back</button></td></tr></table>';
+	return $str;
+
+}
+
+
+
+function vwcredits_ipns() {
+
+	$ipns_per_page = 50;
+
+	$output = drupal_render(drupal_get_form('vwcredits_ipn_filter'));
+
+	$header = array(
+	array('data' => t('Id'), 'field' => 'id'),
+	array('data' => t('txn Id'), 'field' => 'txn_id'),
+	array('data' => t('Txn Type'), 'field' => 'txn_type'),
+	array('data' => t('Processor'), 'field' => 'method'),
+	array('data' => t('Date'), 'field' => 'create_date', 'sort' => 'desc'),
+	array('data' => t('User'), 'field' => 'uname'),
+	);
+
+
+
+	if ($_COOKIE['vwcredits_ipn_user']) {
+		$where[] = "  u.name like :uname or u.mail like :umail ";
+		$args['uname'] ='%'. $_COOKIE['vwcredits_ipn_user'].'%';
+		$args['umail'] ='%'. $_COOKIE['vwcredits_ipn_user'].'%';
+
+	}
+	if ($_COOKIE['vwcredits_ipn_datef']) {
+		$where[] = " p.create_date >= from_unixtime(:cd)";
+		sscanf($_COOKIE['vwcredits_ipn_datef'], "%d-%d-%d %d:%d:%d", $y, $m, $d, $h, $i, $s);
+		$args['cd'] = mktime($h, $i, $s, $y, $m, $d);
+	}
+	if ($_COOKIE['vwcredits_ipn_datet']) {
+
+		sscanf($_COOKIE['vwcredits_transfer_datet'], "%d-%d-%d %d:%d:%d", $y, $m, $d, $h, $i, $s);
+		$where[] = " p.create_date <= from_unixtime(:td)";
+		$args['td'] = mktime($h, $i, $s, $y, $m, $d);
+
+	}
+
+	if ($_COOKIE['vwcredits_ipn_txn_type']) {
+
+		$where[] = " p.txn_type like :tt ";
+		$args['tt'] = $_COOKIE['vwcredits_ipn_txn_type'];
+
+	}
+
+	if ($_COOKIE['vwcredits_ipn_method']) {
+
+		$where[] = " p.method like :im ";
+		$args['im'] = $_COOKIE['vwcredits_ipn_method'];
+
+	}
+
+	if ($_COOKIE['vwcredits_ipn_comment']) {
+
+		$where[] = " t.comment like :ic ";
+		$args['ic'] = '%'.$_COOKIE['vwcredits_ipn_comment'].'%';
+
+	}
+
+
+
+
+	$where[] = 1;
+	$where = "where " . implode(" and ", $where);
+
+
+
+
+
+	$sql = "SELECT p.id,p.txn_id,p.txn_type,p.method,p.create_date,p.uid,u.name   FROM {vwcredits_ipn} p inner join {users} u on (u.uid=p.uid) $where ";
+	$csql = "SELECT count(*)    FROM {vwcredits_ipn} p inner join {users} u on (u.uid=p.uid) $where ";
+
+
+	///$tablesort = tablesort_sql($header);
+
+	// If not sorting by timestamp then make that the 2nd field to sort on
+
+
+
+
+
+	$result = vwrooms_pager_query($sql ,$csql,$args,$header, $ipns_per_page);
+
+	$rows = array();
+	while ($f = $result->fetchObject()) {
+
+		$rows[] = array(l($f->id, "vwcredits/ipn/$f->id"), $f->txn_id, $f->txn_type, $f->method, $f->create_date, l($f->name, "user/$f->uid"));
+
+
+	}
+
+	if (!$rows) {
+		$rows[] = array(array('data' => t('No ipns found.'), 'colspan' => 3));
+	}
+
+	$output .= theme('table', array('header' => $header, 'rows' => $rows));
+	$output .= vwrooms_pager($ipns_per_page);
+
+	return $output;
+
+
+
+}
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+
+function vwcredits_before(&$node) {
+
+	global $vwrooms_roommode;
+	static $done = 0;
+	if ($done) {
+		return;
+	}
+	$done = 1;
+
+	$mm = variable_get('vwcredits_' . $node->type . '_mm', 'User');
+	if (!$mm) {
+		$mm = 'User';
+	}
+	///echo " mm $mm ";
+	if ($node->nid) {
+		return;
+	}
+	$node->roommode = 'F';
+	if ($mm == 'Paid') {
+		if (!$node->nid) {
+			$node->roommode = 'P';
+		}
+	}
+	else if ($mm == 'Free') {
+
+
+		if (!$node->nid) {
+			$node->roommode = 'F';
+		}
+
+	}
+	else if ($mm == 'User') {
+if($node->nid)
+	return;
+		if ($_POST['modex']) {
+
+$x=			t('Change Mode');
+if($_POST['op']==$x){
+			$node->roommode = filter_xss($_POST['modex']);
+}
+else{
+
+	$node->roommode = $_POST['modex']=='P'||!$_POST['modex']?'F':'P';
+
+}
+		}
+		else if (!$node->roommode) {
+			$node->roommode = 'F';
+		}
+
+
+
+		if(!user_access('vwcredits create free room')){
+
+			if(!$node->nid)
+
+				$node->roommode='P';
+
+			return;
+
+		}
+
+
+
+	}
+
+
+
+
+
+}
+
+
+function vwcredits_afterbuild_gracetime($form, &$form_state) {
+
+	$form['#validate'][] = 'vwcredits_validate_gracetime';
+
+	return($form);
+
+}
+
+
+
+
+
+function vwcredits_afterbuild_roomcost($form, &$form_state) {
+
+	$form['#validate'][] = 'vwcredits_validate_roomcost';
+
+	return($form);
+
+}
+
+
+
+
+
+
+
+
+function vwcredits_validate_roomcost($form, &$form_state) {
+	$type = $form['#node']->type; //or use form_id
+
+	$mx = variable_get('vwcredits_' . $type . '_maxroomcost', '0')	;
+	$mn = variable_get('vwcredits_' . $type . '_minroomcost', '0')	;
+	$t = $form_state['values']['roomcost'];
+	if ($mx == 0) {
+		$mx = 1000000;
+	}
+
+	if ($t < 0) {
+		form_set_error('roomcost', t('Invalid room cost'));
+	}
+	else if (user_access('vwcredits override cost')) {
+		return;
+
+	}
+	else if ($t == 0 && user_access('vwcredits create free room') && $form_state['values']['roommode'] == 'F') {
+		///$form_state['values']['graceperiod']=0;
+		return;
+	}
+
+	elseif ($t < $mn && $mn) {
+		form_set_error('roomcost', t('Room cost less than @mn ', array('@mn' => $mn)));
+	}
+	elseif ($t > $mx && $mx) {
+
+		form_set_error('roomcost', t('Room cost greater than @mx ', array('@mn' => $mx)));
+	}
+
+
+}
+
+function _vwcredits_filter() {
+
+
+	$var = preg_replace("/[^0-9a-zA-Z\.\-\s_]/", "", $var);
+
+	///You could try sanitizing variables ie. sanV($room); with a function like this:
+
+
+
+}
+
+
+
+function vwcredits_validate_gracetime($form, &$form_state) {
+	$type = $form['#node']->type; //or use form_id
+
+	$mx = variable_get('vwcredits_' . $type . '_maxgracetime', '0')	;
+	$mn = variable_get('vwcredits_' . $type . '_mingracetime', '0')	;
+	$t = (int) $form_state['values']['graceperiod'];
+	if ($mn == 0) {
+		$mn = 0;
+	}
+	if ($mx == 0) {
+		$mx = 1000000;
+	}
+	if ($t < 0) {
+
+		form_set_error('graceperiod', t('Invalid grace period'));
+	}
+	else if (user_access('vwcredits override cost')) {
+		return;
+
+	}
+	elseif ($t < $mn && $mn) {
+
+		if (!user_access('vwcredits create free room')) {
+			form_set_error('roomcost', t('Grece preriod  less than @mn ', array('@mn' => $mn)));
+		}
+	}
+	elseif ($t > $mx && $mx) {
+
+		form_set_error('graceperiod', t('Grace period greater than @mx ', array('@mn' => $mx)));
+	}
+
+}
+
+
+function vwcredits_broadcastoptions($node, $name = '') {
+	static $options;
+	if (is_array($options)) {
+		return $options['name'] ? $options['name'] : vwcredits_defaultbc($node);
+	}
+	$bo = array();
+	if ($node->camwidth) {
+		$node->resolution = $node->camwidth . "x" . $node->camheight;
+	}
+
+	if ($node->roommode == 'P' && module_exists('vwcredits')) {
+
+
+
+
+
+		$df = variable_get($type . '_paidresolution', '');
+		if ($df) {
+			$o = explode(",", $df);
+			$options = array();
+			foreach ($o as $v) {
+				$options[$v] = $v;
+			}
+			$default = $v;
+		}
+		else {
+			$options = array("320x240" => "320x240", "160x120" => "160x120", "176x144" => "176x144", "352x288" => "352x288", "640x480" => "640x480");
+			$default = "320x240";
+		}
+		if ($node->resolution) {
+			$default = $node->resolution;
+		}
+
+		$bo['resolution'][0] = $options;
+		$bo['resolution'][1] = $default;
+
+
+
+
+
+
+
+
+		$df = variable_get($type . '_paidcamfps', '');
+		if ($df) {
+			$o = explode(",", $df);
+			$options = array();
+			foreach ($o as $v) {
+				$options[$v] = $v;
+			}
+			$default = $v;
+		}
+		else {
+			$options = array("15" => "15", "10" => "10", "12" => "12", "20" => "20", "25" => "25", "30" => "30");
+			$default = "30";
+		}
+		if ($node->campfs) {
+			$default = $node->camfps;
+		}
+
+		$bo['camfps'][0] = $options;
+		$bo['camfps'][1] = $default;
+
+
+
+
+
+
+
+
+		$df = variable_get($type . '_paidmicrate', '');
+		if ($df) {
+			$o = explode(",", $df);
+			$options = array();
+			foreach ($o as $v) {
+				$options[$v] = $v;
+			}
+			$default = $v;
+		}
+		else {
+
+			$options = array("22" => "22", "11" => "11", "44" => "44", "48" => "48");
+			$default = "44";
+		}
+		if ($node->micrate) {
+			$default = $node->micrate;
+		}
+
+		$bo['micrate'][0] = $options;
+		$bo['micrate'][1] = $default;
+
+
+
+
+
+
+		$df = variable_get($type . '_paidbandwidth', '');
+		if (!$df) {
+			$df = '65536';
+		}
+		$bo['bandwidth'] = $node->bandwidth ? $node->bandwidth : $df;
+
+
+
+		$df = variable_get($type . '_paidmaxbandwidth', '');
+		if (!$df) {
+			$df = '131072';
+		}
+		$bo['maxbandwidth'] = $node->maxbandwidth ? $node->maxbandwidth : $df;
+
+
+
+
+
+	}
+	else {
+		$df = variable_get('v2wvc_defaultresolution', '');
+		if ($df) {
+			$o = explode(",", $df);
+			$options = array();
+			foreach ($o as $v) {
+				$options[$v] = $v;
+			}
+			$default = $v;
+
+		}
+		else {
+			$options = array("320x240" => "320x240", "160x120" => "160x120");
+			$default = "160x120";
+		}
+		if ($node->resolution) {
+			$default = $node->resolution;
+		}
+		$bo['resolution'][0] = $options;
+		$bo['resolution'][1] = $default;
+
+
+
+
+		$df = variable_get('v2wvc_defaultcamfps', '');
+		if ($df) {
+			$o = explode(",", $df);
+			$options = array();
+			foreach ($o as $v) {
+				$options[$v] = $v;
+			}
+			$default = $v;
+		}
+		else {
+			$options = array("15" => "15", "10" => "10", "12" => "12");
+			$default = "15";
+		}
+		if ($node->camfps) {
+			$default = $node->camfps;
+		}
+
+		$bo['camfps'][0] = $options;
+		$bo['camfps'][1] = $default;
+
+
+
+		$df = variable_get('v2wvc_defaultmicrate', '');
+		if ($df) {
+			$o = explode(",", $df);
+			$options = array();
+			foreach ($o as $v) {
+				$options[$v] = $v;
+			}
+			$default = $v;
+		}
+		else {
+
+			$options = array("22" => "22", "11" => "11");
+			$default = "15";
+		}
+		if ($node->micrate) {
+			$default = $node->micrate;
+		}
+
+		$bo['micrate'][0] = $options;
+		$bo['micrate'][1] = $default;
+
+
+
+
+		$df = variable_get('v2wvc_defaultbandwidth', '');
+		if (!$df) {
+			$df = '65536';
+		}
+		$bo['bandwidth'] = $node->bandwidth ? $node->bandwidth : $df;
+
+
+
+		$df = variable_get('v2wvc_defaultmaxbandwidth', '');
+		if (!$df) {
+			$df = '65536';
+		}
+		$bo['maxbandwidth'] = $node->maxbandwidth ? $node->maxbandwidth : $df;
+
+
+
+
+	}
+
+
+
+
+
+
+
+
+}
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_defaultbc($node) {
+
+
+
+}
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_broadcastchange($form, &$form_state) {
+
+
+}
+
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_broadcastform() {
+
+	// The form is generated in an include file which we need to include manually.
+	// The form is generated in an include file which we need to include manually.
+	include_once DRUPAL_ROOT . '/' . 'modules/node/node.pages.inc';
+
+	// We're starting in step #3, preparing for #4.
+	$form_state = array('storage' => NULL, 'submitted' => FALSE);
+	$form_build_id = filter_xss($_POST['form_build_id']);
+	// Step #4.
+	$form = form_get_cache($form_build_id, $form_state);
+
+	$args = $form['#parameters'];
+	$form_id = array_shift($args);
+	$form_state['post'] = $form['#post'] = $_POST;
+	$form['#programmed'] = $form_state['#redirect'] = FALSE;
+	$form = form_builder($form_id, $form, $form_state);
+
+	$form['#submit'] = array('vwcredits_broadcastchange');
+
+	node_form_submit_build_node($form, $form_state);
+	$form = drupal_rebuild_form($form_id, $form_state, $args, $form_build_id);
+
+	if ($form_id == 'vconf_node_form' || $form_id == 'v2wvc_node_form' || $form_id == 'vconsult_node_form') {
+		$subform = $form['advanced']['cnt']['webcam'];
+	}
+	else {
+		$subform = $form['advanced']['cnt']['broadcasting'];
+	}
+
+
+	unset($subform['#prefix'], $subform['#suffix']);
+	// TODO Please change this theme call to use an associative array for the $variables parameter.
+	$output = theme('status_messages') . drupal_render($subform);
+
+	// Final rendering callback.
+
+
+	// Final rendering callback.
+	drupal_json_output(array('status' => TRUE, 'data' => $output));
+
+}
+
+
+function vwcredits_menu_alter(&$items){
+
+
+}
+
+
+
+function vwcredits_form_stage_submit($form,&$form_state){
+$store=&$form_state['storage'];
+
+
+
+
+
+}
+
+function vwcredits_afterbuild($form,&$form_state){
+
+	$form['roombutton']
+	= array(
+	'#weight' => -99998,
+			      '#type'   => 'submit',
+			      '#value'  =>'Change Mode', //t('Change to @rmtx',array('@rmtx'=>$rmtx)),
+			      '#id'=>'vwcredits-next',
+			      '#submit' => array('vwcredits_node_form_next', 'node_form_submit_build_node'),
+///				'#limit_validation_errors' => array('modex'),
+	///			'#executes_submit_callback'=>false
+
+	);
+///	$form['modex']=array('#type'=>'hidden' ,'#default_value'=>($_POST['modex']=='P'?'F':'P'));
+
+	return $form;
+
+}
+
+function vwcredits_node_form_next(&$form, &$form_state) {
+	$form_state['values']['modex']=$_POST['modex'];
+///var_dump($form_state);
+//unset($form['advanced']['cnt']['broadcasting']['bandwidth']);
+///exit;
+	///$form_state['values'][advanced][broadcasting][bandwidth]=300;
+//	$form_state['values']['maxbandwidth'];
+//unset($form['bandwidth']);
+$form_state['rebuild'] = TRUE;
+$form_state['redirect'] = false;
+}
+function vwcredits_node_form_previous($form, &$form_state) {
+	$form_state['rebuild'] = TRUE;
+	$form_state['storage']['step']--;
+	unset($form_state['node_preview']);
+	node_form_submit_build_node($form, $form_state);
+}
+
+
+function vwcredits_val($form,&$form_state){
+//unset($form_state['values']['bandwidth']);
+//$form_state['values']['bandwidth']=300;
+///$form_state['values']['advanced']['broadcasting']['bandwidth']=300;
+}
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_form_alter(&$form, &$form_state, $form_id) {
+
+	global $user;
+	if ($form_id == 'vls_start_form3' ||$form_id == 'vls_start_form2' ||$form_id == 'vls_start_form' || $form_id == 'vconsult_start_form' || $form_id == 'v2wvc_start_form' || $form_id == 'vconf_start_form') {
+		$room = $form['r']['#value'];
+
+		$nid = (int) str_replace("node/", '', $_GET['q']);
+
+		if (!$nid) {
+			$form = array();
+
+			$form['un'] = array('#markup' => '<p>' . t('Invalid') . '</p>');
+			return;
+		}
+		$fc = db_query("select * from {vwcredits_cost} where room_nid=:d", array(':d'=>$nid))->fetchObject();
+		//$fc = db_fetch_object($qs);
+
+
+		$qs =		db_query("select * from {vwcredits_tmpcr}   where uid=:d ", array(':d'=>$user->uid));
+
+
+		$ft = $qs->fetchObject();
+
+
+		if ($fc->uid == $user->uid) {
+			$cost = $fc->ownersroomcost;
+
+		}
+		else {
+			$gain = $fc->ownersgain;
+			$cost = $fc->roomcost;
+			$ownercost = $fc->ownerscost;
+		}
+/*newcorrectable d*/
+
+		if ($cost > $ft->bal ) {
+			$form = array();
+			$msg = t("You need at least @c credits to access this room. !a to your account.", array('!a' => l('Add more credits', 'vwcredits/payments/packagelist'), '@c' => ceil($cost)));
+			$form['un'] = array('#markup' => '<p>' . $msg . '</p>');
+
+		}
+
+
+		return;
+	}
+
+
+	$q = filter_xss($_GET['q']);
+
+	if ($form_id == 'vls_node_form' || $form_id == 'vconsult_node_form' || $form_id == 'v2wvc_node_form' || $form_id == 'vconf_node_form') {
+		////		$urlf=url("$q",array('query'=>array('mode'=>'F'),'#absolute'=>true));
+		////		$urlp=url("$q",array('query'=>array('mode'=>'P'),'#absolute'=>true));
+
+
+
+		$type = $form['#node']->type; //or use form_id
+
+		$step = isset($form_state['storage']['step']) ? $form_state['storage']['step'] : 1;
+/*
+		if ($step > 1) {
+			$form['actions']['previous'] = array(
+		      '#type'   => 'submit',
+		      '#value'  => t('Previous'),
+		      '#submit' => array('vwcredits_node_form_previous', 'node_form_submit_build_node'),
+			// -1 so that it appears before the "Next" button added later.
+		      '#weight' => -1,
+		      '#limit_validation_errors' => array(),
+			);
+		}
+		if ($step <2) {
+			///$form['#after_build'][]='vwcredits_afterbuild';
+//$form['#submit']=array('vwcredits_node_form_next', 'node_form_submit_build_node');
+///$form['#limit_validation_errors']=array();
+///$form['#validate']=array();
+
+			$form['actions']['next'] = array(
+		      '#type'   => 'submit',		echo "step $step";
+
+		      '#value'  => t('Next'),
+		      '#id'=>'vwcredits-next',
+		      '#submit' => array('vwcredits_node_form_next', 'node_form_submit_build_node'),
+			'#limit_validation_errors' => array(),
+
+			);
+		}
+*/
+
+
+
+
+
+
+
+
+		$node = $form['#node'];
+
+		$mm = variable_get('vwcredits_' . $type . '_mm', 'User');
+		if (!$mm) {
+			$mm = 'User';
+		}
+		$mxr = variable_get('vwcredits_' . $type . '_maxroomcost', '0')	;
+		$mnr = variable_get('vwcredits_' . $type . '_minroomcost', '0')	;
+		$mxg = variable_get('vwcredits_' . $type . '_maxgracetime', '0')	;
+		$mng = variable_get('vwcredits_' . $type . '_mingracetime', '0')	;
+		$rc = variable_get('vwcredits_' . $type . '_roomcost', '0')	;
+		$ot = variable_get('vwcredits_' . $type . '_ownerscost', '0')	;
+		$og = variable_get('vwcredits_' . $type . '_ownersgain', '0')	;
+		$or = variable_get('vwcredits_' . $type . '_ownersroomcost', '0')	;
+
+		$gt = variable_get('vwcredits_' . $type . '_defaultgracetime', '0')	;
+
+
+
+
+
+
+		if (user_access('vwcredits create free room')&&user_access('vwcredits create paid room')) {
+
+			if ($node->nid) {
+				$form['roommode'] = array('#type' => 'hidden', '#value' => $node->roommode);
+				$form['roommark'] = array('#markup' => $node->roommode == 'P' ? t('Paid Room') : t('Free Room'), '#weight' => -10000,);
+
+			}
+			else if ($mm == 'User') {
+				$rmm=filter_xss($_POST['modex']);
+				if(!$node->roommode){
+				if($rmm)
+				$node->roommode=$rmm;
+				else
+				$node->roommode = 'P';
+				}
+if($node->roommode=='P'){
+
+	$rmt=t('Paid Mode');
+	$rmtx=t('Free Mode');
+	$oval='F';
+}
+else{
+	$oval='P';
+	$rmtx=t('Paid Mode');
+	$rmt=t('Free Mode');
+
+}
+drupal_add_js('
+		jQuery(document).ready(function(){
+$=jQuery.noConflict();
+
+
+$("#'.str_replace('_','-',$form_id).'").submit(function(){
+
+			$(".changebroad").find("option:selected").removeAttr("selected");
+
+			});
+
+
+	});
+
+		', array('type' => 'inline'));
+
+////$form['#after_build'][]='vwcredits_afterbuild';//($form, $form_state);
+$form['roommodex']=array('#markup'=>t('Room Mode <strong>@r</strong>&nbsp;',array('@r'=>$rmt)),'#weight' => -10000,);
+$form['roombutton']
+			 = array(
+'#weight' => -99998,
+		      '#type'   => 'submit',
+		      '#value'  =>t('Change Mode'), //t('Change to @rmtx',array('@rmtx'=>$rmtx)),
+		      '#id'=>'vwcredits-next',
+		      '#submit' => array('vwcredits_node_form_next', 'node_form_submit_build_node'),
+		      '#validate'=>array('vwcredits_val'),
+			'#limit_validation_errors' => array(),
+///			'#executes_submit_callback'=>false
+
+			);
+
+$form['modex']=array('#type'=>'hidden' ,'#value'=>($form_state['values']['modex']=='F'||!$form_state['values']['modex']?'P':'F'));
+
+
+///$form['roommode']=array('#type'=>'hidden','#default_value'=>$node->roommode,'#id'=>'vwcredits-roommode','#attributes'=>array('id'=>'vwcredits-roommode'));
+
+			////	$form['roommode'] = array('#weight' => -10000, '#title' => t('Paid/Free'), '#type' => 'select', '#options' => array('F' => t('Free Room'), 'P' => t('Paid Room'))
+			///	, '#default_value' => $node->roommode,
+
+///				);
+///				$form['roomapply'] = array('#type' => 'button', '#executes_submit_callback' => false, '#value' => t('Apply'), '#weight' => -9999, '#ahah' => array('path' => 'vwcredits/broadcastform', 'wrapper' => 'room-advanced-broadcasting-wrapper', 'method' => 'replace', 'event' => 'click'));
+
+
+			}
+			else {
+				$form['roommode'] = array('#type' => 'hidden', '#value' => $node->roommode);
+				$form['roommark'] = array('#markup' => $node->roommode == 'P' ? t('Paid Room') : t('Free Room'), '#weight' => -10000,);
+
+
+			}
+
+
+		}
+
+			else {
+
+			////$node->roommode='P';
+			$form['roommode'] = array('#type' => 'hidden', '#value' => $node->roommode);
+			$form['roommark'] = array('#markup' => $node->roommode == 'P' ? t('Paid Room') : t('Free Room'), '#weight' => -10000,);
+
+			///			$form['roommark']=array('#value'=>t('Paid Room.'),'#weight'=>-10000,);
+
+
+
+		}
+
+		if ($node->roommode == 'F') {
+			if ($node->nid) {
+				return;
+			}
+			/*
+			 if(user_access('vwcredits owner set cost')||user_access('administer vwcredits')){
+
+			$rc=db_result(db_query("select roomcost from {vwcredits_cost} where room_nid=%d ",$node->nid));
+
+
+
+			if(!$rc)
+			$rc=variable_get('vwcredits_'.$type.'_roomcost','0.0');
+			$form['roomcost']=array('#attributes'=>array('style'=>'display:none'),'#type'=>'textfield','#size'=>10,'#title'=>t('User Cost'),'#default_value'=>$rc,'#description'=>t('Room Cost between @m to @x. Doesn\'t apply to free rooms.',array('@m'=>$mnr,'@x'=>$mxr)));
+
+			$form['#after_build'][] = '_vwcredits_afterbuild_roomcost';
+			///		$form['roomcostm']=array('#type'=>'markup',);
+
+
+			}else
+			{
+
+			$form['roomcostm']=array('#attributes'=>array('style'=>'display:none'),'#type'=>'markup','#value'=>t('Room Cost @c per minute(for paid rooms only)',array('@c'=>variable_get('vwcredits_'.$type.'_roomcost',''))));
+			$form['roomcost']=array('#type'=>'hidden','#value'=>variable_get('vwcredits_'.$type.'_roomcost','0'));
+			$form['#after_build'][] = '_vwcredits_afterbuild_roomcost';
+
+
+			}
+			if(user_access('vwcredits owner set grace')||user_access('administer vwcredits')){
+
+			$gr=db_result(db_query("select graceperiod from {vwcredits_cost} where room_nid=%d ",$node->nid));
+
+
+
+			if(!$gr)
+			$gr=variable_get('vwcredits_'.$type.'_defaultgracetime','0.0');
+
+			$form['graceperiod']=array('#attributes'=>array('style'=>'display:none'),'#type'=>'textfield','#size'=>10,'#title'=>t('Grace Period'),'#default_value'=>$gr,'#description'=>t('No of seconds after which room usage is charged. set between @m to @x. Doesn\'t apply to free rooms. ',array('@m'=>$mng,'@x'=>$mxg)));
+			$form['#after_build'][] = '_vwcredits_afterbuild_gracetime';
+
+
+			}else{
+			$form['roomcostg']=array('#attributes'=>array('style'=>'display:none'),'#type'=>'markup','#value'=>t('Grace Period @c sec (for paid rooms only)',array('@c'=>variable_get('vwcredits_'.$type.'_defaultgracetime','0.0'))));
+			$form['graceperiod']=array('#type'=>'hidden','#value'=>variable_get('vwcredits_'.$type.'_defaultgracetime','0.0'));
+			$form['#after_build'][] = '_vwcredits_afterbuild_gracetime';
+
+
+			}
+			*/
+			return;
+		}
+		if (user_access('vwcredits owner set cost') || user_access('administer vwcredits')) {
+
+			$rc = db_query("select roomcost from {vwcredits_cost} where room_nid= ". (int)$node->nid)->fetchField();
+
+
+
+			if (!$rc) {
+				$rc = variable_get('vwcredits_' . $type . '_roomcost', '0.0');
+			}
+			$form['roomcost'] = array('#type' => 'textfield', '#size' => 10, '#title' => t('User Cost'), '#default_value' => $rc, '#description' => t('Room Cost between @m to @x. Doesn\'t apply to free rooms.', array('@m' => $mnr, '@x' => $mxr)));
+
+			$form['#after_build'][] = 'vwcredits_afterbuild_roomcost';
+			///		$form['roomcostm']=array('#type'=>'markup',);
+
+
+		}
+		else {
+
+			$form['roomcostm'] = array( '#markup' => t('Room Cost @c per minute(for paid rooms only)', array('@c' => variable_get('vwcredits_' . $type . '_roomcost', ''))));
+			$form['roomcost'] = array('#type' => 'hidden', '#value' => variable_get('vwcredits_' . $type . '_roomcost', '0'));
+			$form['#after_build'][] = 'vwcredits_afterbuild_roomcost';
+
+
+		}
+		if (user_access('vwcredits owner set grace') || user_access('administer vwcredits')) {
+
+			$gr = db_query("select graceperiod from {vwcredits_cost} where room_nid= ".(int) $node->nid)->fetchField();
+
+
+
+			if (!$gr) {
+				$gr = variable_get('vwcredits_' . $type . '_defaultgracetime', '0.0');
+			}
+
+			$form['graceperiod'] = array('#type' => 'textfield', '#size' => 10, '#title' => t('Grace Period'), '#default_value' => $gr, '#description' => t('No of seconds after which room usage is charged. set between @m to @x. Doesn\'t apply to free rooms. ', array('@m' => $mng, '@x' => $mxg)));
+			$form['#after_build'][] = 'vwcredits_afterbuild_gracetime';
+
+
+		}
+		else {
+			$form['roomcostg'] = array( '#markup' => t('Grace Period @c sec (for paid rooms only)', array('@c' => variable_get('vwcredits_' . $type . '_defaultgracetime', '0.0'))));
+			$form['graceperiod'] = array('#type' => 'hidden', '#value' => variable_get('vwcredits_' . $type . '_defaultgracetime', '0.0'));
+			$form['#after_build'][] = 'vwcredits_afterbuild_gracetime';
+
+
+		}
+
+
+	}
+
+
+
+}
+
+
+
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_ipn_filter_submit($form, &$form_state) {
+
+	$v = &$form_state['values'];
+
+
+	setcookie('vwcredits_ipn_user', trim($v['user']));
+
+	setcookie('vwcredits_ipn_datef', $v['datefrom']);
+	setcookie('vwcredits_ipn_datet', $v['dateto']);
+
+	setcookie('vwcredits_ipn_txn_type', $v['txn_type']);
+	///setcookie('vwcredits_ipn_comment',trim($v['comment']));
+
+
+}
+
+
+
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_ipn_filter($form) {
+
+	$txns = array('' => '', 'charge' => t('Plimus Charge'), 'recurring' => t('Plimus Recurring'), 'refund' => t('Plimus Refund'),
+	'chargeback' => t('Plimus Chargeback'),
+	'cancellation chargeback' => t('Plimus Cancellation Chargeback'),
+	'decline' => t('Plimus Decline'), 'cancel' => t('Plimus Cancel'),
+'web_accept' => t('Paypal web_accept'), 'subscr_payment' => t('Paypal subscr payment'), 'subscr_cancel' => t('Paypal subscr cancel'), 'subscr_eot' => t('Paypal subscr end'), 'subscr_modify' => t('Paypal subscr modify')
+	);
+
+
+	$form = array();
+	$form['f'] = array('#type' => 'fieldset', '#title' => t('Filter'), '#collapsible' => true, '#collapsed' => true);
+
+	$form['f']['user'] = array('#type' => 'textfield', '#autocomplete_path' => 'user/autocomplete', '#title' => t('User'), '#default_value' => $_COOKIE['vwcredits_ipn_user'], '#description' => t('User email or username match'));
+	//$form['f']['comment']=array('#type'=>'textfield','#title'=>t('Comment Like'),'#default_value'=>$_COOKIE['vwcredits_ipn_user'],'#description'=>t('partial match  for comment'));
+	$form['f']['txn_type'] = array('#type' => 'select', '#title' => t('Transaction type'), '#default_value' => $_COOKIE['vwcredits_ipn_txn_type'], '#options' => $txns);
+
+
+	$form['f']['datefrom'] = array('#type' => 'date_popup', '#title' => t("Date From"), '#date_format' => 'Y-m-d H:i:s', '#default_value' => $_COOKIE['vwcredits_ipn_datef']);
+	$form['f']['dateto'] = array('#type' => 'date_popup', '#title' => t("Date To"), '#date_format' => 'Y-m-d H:i:s', '#default_value' => $_COOKIE['vwcredits_ipn_datet']);
+
+
+	$form['f']['#redirect'] = 'vwcredits/payments/ipns';
+	$form['f']['reset'] = array(
+		'#markup' => '<input class="form-button" type="reset" value=" Reset " />',
+	);
+
+	$form['f']['submit'] = array('#type' => 'submit', '#value' => t('Filter'));
+
+	return $form;
+
+
+}
+
+
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_creditlist_filter_submit($form, &$form_state) {
+	$v = &$form_state['values'];
+	setcookie('vwcredits_creditlist_user', trim($v['user']));
+
+
+
+
+}
+
+
+
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_creditlist_filter($form) {
+
+	$form = array();
+	$form['f'] = array('#type' => 'fieldset', '#title' => t('Filter'), '#collapsible' => true, '#collapsed' => true);
+	if (user_access('administer vwcredits')) {
+		$form['f']['user'] = array('#type' => 'textfield', '#autocomplete_path' => 'user/autocomplete', '#title' => t('User'), '#default_value' => $_COOKIE['vwcredits_creditlist_user'], '#description' => t('Partial match for User email or username'));
+	}
+
+	$form['f']['#redirect'] = 'vwcredits/payments/creditlist';
+	/*
+	 $form['f']['reset'] = array (
+	'#type' => 'markup',
+	'#value' => '<input class="form-button" type="reset" value=" Reset " />',
+	);
+	*/
+	$form['f']['submit'] = array('#type' => 'submit', '#value' => t('Filter'));
+
+
+	return $form;
+
+
+}
+
+
+
+
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_creditlist() {
+
+	if (!user_access('administer vwcredits')) {
+		return vwcredits_credit_page();
+	}
+
+
+	if ($_COOKIE['vwcredits_creditlist_user']) {
+		$where[] = "  u.name like :uname or u.mail like :umail ";
+		$args['uname'] ='%' .$_COOKIE['vwcredits_creditlist_user'].'%';
+		$args['umail'] ='%'. $_COOKIE['vwcredits_creditlist_user'].'%';
+
+	}
+
+	$where[] = 1;
+
+	$headers = array(
+	array('data' => t('User'), 'field' => 'name'),
+	array('data' => t('Email'), 'field' => 'mail'),
+	array('data' => t('Credits'), 'field' => 'bal'),
+	array('data' => t('Available Credits'), 'field' => 'abal'),
+	array(t('Add Credit'))
+
+
+
+	);
+
+	$limit = 50;
+
+	$where = " where " . implode(" and ", $where);
+
+	$sql = "select u.name as name,u.mail ,v.bal,w.bal as abal, u.uid as uid  from {vwcredits_credit} v
+	inner join {users} u on(u.uid=v.uid)  inner join {vwcredits_tmpcr} w on (w.uid=v.uid)     $where ";
+	$csql = " select count(*) from {vwcredits_credit}  v inner join {users} u on(u.uid=v.uid)  inner join {vwcredits_tmpcr} w on (w.uid=v.uid)     $where ";
+
+	///if(!$_GET['order'])
+	///$sql.=" order by w.timest desc ";
+	///else
+
+	$q = vwrooms_pager_query($sql,$csql,$args,$headers, $limit);
+	$data = array();
+	while ($f = $q->fetchObject()) {
+		$chkbox = "";
+		$wtime = "";
+
+		$data[] = array(l($f->name, "user/$f->uid"), $f->mail, $f->bal, $f->abal, l("Add", 'vwcredits/addcredit/' . $f->name));
+	}
+
+	return drupal_render(drupal_get_form('vwcredits_creditlist_filter')) . theme('table', array('header' => $headers, 'rows' => $data)) . vwrooms_pager($limit);
+
+
+}
+
+
+
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_transfer_filter_submit($form, &$form_state) {
+	$v = &$form_state['values'];
+
+	setcookie('vwcredits_transfer_user', trim($v['user']));
+
+	setcookie('vwcredits_transfer_datef', $v['datefrom']);
+	setcookie('vwcredits_transfer_datet', $v['dateto']);
+	///setcookie('vwcredits_transfer_ttype',$v['ttype']);
+	setcookie('vwcredits_transfer_trans_type', trim($v['transfer_type']));
+	setcookie('vwcredits_transfer_room', trim($v['room']));
+	setcookie('vwcredits_transfer_module', trim($v['module']));
+	setcookie('vwcredits_transfer_context', trim($v['context']));
+
+
+
+}
+
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_transfer_filter($form) {
+
+	$form = array();
+	$form['f'] = array('#type' => 'fieldset', '#title' => t('Filter'), '#collapsible' => true, '#collapsed' => true);
+	if (user_access('administer vwcredits')) {
+		$form['f']['user'] = array('#type' => 'textfield', '#autocomplete_path' => 'user/autocomplete', '#title' => t('User'), '#default_value' => $_COOKIE['vwcredits_transfer_user']);
+	}
+
+	$form['f']['datefrom'] = array('#type' => 'date_popup', '#title' => t("Date From"), '#date_format' => 'Y-m-d H:i:s', '#default_value' => $_COOKIE['vwcredits_transfer_datef']);
+	$form['f']['dateto'] = array('#type' => 'date_popup', '#title' => t("Date To"), '#date_format' => 'Y-m-d H:i:s', '#default_value' => $_COOKIE['vwcredits_transfer_datet']);
+	$form['f']['room'] = array('#type' => 'textfield', '#autocomplete_path' => 'vwcredits/rooms', '#title' => t("Room"), '#default_value' => $_COOKIE['vwcredits_transfer_room'], '#description' => t('Enter partial match for node title (not room name)'));
+	///$form['f']['ttype']=array('#type'=>'select','#title'=>t("Transaction Type"),'#options'=>array('','D'=>'Dr','C'=>'Cr'),'#default_value'=>$_SESSION['vwcredits_transaction_ttype']);
+
+	$form['f']['context'] = array('#type' => 'textfield', '#title' => t("Context"), '#default_value' => $_COOKIE['vwcredits_transfer_context'], '#description' => t('keyword context= room admin [account] enter partial match for it.'));
+
+	$form['f']['module'] = array('#type' => 'select', '#title' => t("Source"),
+'#options' => array('' => '', 'vls' => t('VLS'), 'vconsult' => t('V Consult'),
+'v2wvc' => t('2 Way Video Chat'), 'admin' => t('Admin'), 'paypal' => t('Paypal'), 'plimus' => t('Plimus')), '#default_value' => $_COOKIE['vwcredits_transfer_module']);
+	$form['f']['trans_type'] = array('#type' => 'select', '#title' => t("Type"),
+'#options' => array('' => t('All'), 'ownerscost' => t('Owner\'s cost'), 'ownersroomcost' => t('Owners room cost'), 'roomcost' => t('Room Cost'),
+'freereg' => t('Free Reg.'), 'withdraw' => t('Withdrawal'), 'payment' => t('Payment')), '#default_value' => $_COOKIE['vwcredits_transfer_trans_type']);
+
+
+
+	$form['f']['#redirect'] = 'vwcredits/payments/transfers';
+	$form['f']['reset'] = array(
+		'#markup' => '<input class="form-button" type="reset" value=" Reset " />',
+	);
+	$form['f']['submit'] = array('#type' => 'submit', '#value' => t('Filter'));
+	return $form;
+
+
+}
+
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_transfers() {
+
+	global $user;
+	/*
+	 room_nid
+	uid
+	start_time
+	last_time
+	app_time
+	amt
+	applied
+	type='usercost','ownerscost','ownersowncost'
+	mode
+	*
+	*
+	*/
+
+
+	$uid = (int) $user->uid;
+
+	$form =drupal_render( drupal_get_form('vwcredits_transfer_filter'));
+	$where = array();
+	$args = array();
+	if ($_COOKIE['vwcredits_transfer_user']) {
+
+		$where[] = "  u.name like :uname or u.mail like :umail ";
+		$args['uname'] = '%'.$_COOKIE['vwcredits_transfer_user'].'%';
+		$args['umail'] = '%'.$_COOKIE['vwcredits_transfer_user'].'%';
+
+	}
+
+	if ($_COOKIE['vwcredits_tranfer_datef']) {
+
+		$where[] = " t.start_time >= from_unixtime(:st)";
+		sscanf($_COOKIE['vwcredits_transfer_datef'], "%d-%d-%d %d:%d:%d", $y, $m, $d, $h, $i, $s);
+		$args['st'] = mktime($h, $i, $s, $y, $m, $d);
+
+	}
+
+	if ($_COOKIE['vwcredits_transfer_datet']) {
+
+		sscanf($_COOKIE['vwcredits_transfer_datet'], "%d-%d-%d %d:%d:%d", $y, $m, $d, $h, $i, $s);
+		$where[] = " t.start_time <= from_unixtime(:st2)";
+		$args['st2'] = mktime($h, $i, $s, $y, $m, $d);
+
+	}
+
+	if ($_COOKIE['vwcredits_transfer_room']) {
+
+		$where[] = " n.title like :ttl ";
+		$args['ttl'] = '%'.$_COOKIE['vwcredits_transfer_room'].'%';
+
+	}
+	if ($_COOKIE['vwcredits_transfer_trans_type']) {
+
+		$where[] = " t.transfer_type like :tt ";
+		$args['tt'] = $_COOKIE['vwcredits_transfer_trans_type'];
+
+	}
+	if ($_COOKIE['vwcredits_transfer_module']) {
+
+		$where[] = " t.source=:s ";
+		$args['s'] = $_COOKIE['vwcredits_transfer_module'];
+
+
+	}
+
+	if ($_COOKIE['vwcredits_transfer_context']) {
+
+		$where[] = " t.context like =:ctx ";
+		$args['ctx'] = '%'.$_COOKIE['vwcredits_transfer_context'].'%';
+
+
+	}
+
+
+
+
+	if (!user_access('administer vwcredits')) {
+
+		$where[] = " t.uid=$uid ";
+
+	}
+	$where[] = 1;
+
+
+
+
+	if (!user_access('administer vwcredits')) {
+
+		$where[] = "  t.uid=$uid  ";
+
+	}
+	$where = "where " . implode(" and ", $where);
+
+	$limit = 50;
+	$sql = " select   u.name,t.source ,t.start_time,t.last_time,t.app_time,t.acost,t.applied,t.transfer_type,t.mode,t.tcost from {vwcredits_transfer} t
+  inner join {users} u on (t.uid=u.uid)  left join {node} n on (n.nid=t.room_nid)   $where  ";
+
+	$csql = " select  count(*) from {vwcredits_transfer} t
+  inner join {users} u  on (t.uid=u.uid)  left join {node} n on (n.nid=t.room_nid)   $where  ";
+
+	$headers = array(t('User'), t('Start Time'), t('Amount'), t('Status'), t('Type'), t('Total Applied to date'));
+
+	$q = vwrooms_pager_query($sql, $csql,$headers,$limit);
+
+
+	$data = array();
+	while ($f = $q->fetchObject()) {
+		if ($f->mode == 'C') {
+			$mode = 'Cr';
+		}
+		else if ($f->mode == 'D') {
+			$mode = 'Dr';
+		}
+		else {
+			$mode = '';
+		}
+
+		$data[] = array($f->name, $f->start_time, $f->acost . ' ' . $mode, $f->applied == 1 ? t('Applied') : t('Progress'), $f->transfer_type . ' ' . $f->source, $f->tcost);
+	}
+
+	return drupal_render(drupal_get_form('vwcredits_transfer_filter')) . theme('table', array('header' => $headers, 'rows' => $data)) .vwrooms_pager();
+
+}
+
+
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_transaction_filter_submit($form, &$form_submit) {
+	$v = $form_submit['values'];
+	setcookie('vwcredits_transaction_user', $v['user']);
+
+	setcookie('vwcredits_transaction_datef', $v['datefrom']);
+	setcookie('vwcredits_transaction_datet', $v['dateto']);
+	setcookie('vwcredits_transaction_type', $v['type']);
+	setcookie('vwcredits_transaction_ctx', $v['context']);
+	 if($form_submit['input']['showroom']=='Y'){
+	setcookie('vwcredits_transaction_showroom','Y');
+
+	}
+	else{
+	setcookie('vwcredits_transaction_showroom','N');
+	}
+
+	if($form_submit['input']['filterroom']=='Y'){
+
+		setcookie('vwcredits_transaction_filterroom','Y');
+
+
+
+	}
+
+	else{
+
+		setcookie('vwcredits_transaction_filterroom','N');
+
+	}
+
+
+	if ($form_submit['input']['showcomment'] == 'Y') {
+		setcookie('vwcredits_transaction_showcomment', 'Y');
+
+	}
+	else {
+
+		setcookie('vwcredits_transaction_showcomment', 'N');
+
+	}
+
+}
+
+
+
+
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwcredits_transaction_filter($form) {
+	$form = array();
+	$form['f'] = array('#type' => 'fieldset', '#title' => t('Filter'), '#collapsible' => true, '#collapsed' => true);
+	if (user_access('administer vwcredits')) {
+		$form['f']['user'] = array('#type' => 'textfield', '#autocomplete_path' => 'user/autocomplete', '#title' => t('User'), '#default_value' => $_COOKIE['vwcredits_transaction_user']);
+	}
+
+	$form['f']['datefrom'] = array('#type' => 'date_popup', '#title' => t("Date From"), '#date_format' => 'Y-m-d H:i:s', '#default_value' => $_COOKIE['vwcredits_transaction_datef']);
+	$form['f']['dateto'] = array('#type' => 'date_popup', '#title' => t("Date To"), '#date_format' => 'Y-m-d H:i:s', '#default_value' => $_COOKIE['vwcredits_transaction_datet']);
+	$form['f']['context'] = array('#type' => 'textfield', '#title' => t('Context'), '#description' => t('context can contain module,transaction type(debit/credit),user name,room name, room owner,processor(paypal/plimus/admin) etc. to search the transaction.Use only one word'), '#default_value' => $_COOKIE['vwcredits_transaction_ctx']);
+	$cheked = isset($_COOKIE['vwcredits_transaction_filterroom']) ? $_COOKIE['vwcredits_transaction_filterroom'] == 'Y' : '';
+	if($_GET['filterroom']){
+		$cheked='Y';
+//		setcookie('vwcredits_transaction_filterroom','Y');
+
+
+	}
+
+	$form['f']['filterroom'] = array('#type' => 'checkbox', '#title' => t('Room Only Transactions'), '#value' => $cheked, '#return_value' => 'Y');
+
+
+	//$form['f']['room']=array('#type'=>'textfield','#autocomplete_path'=>'vwcredits/rooms','#title'=>t("Room"),'#default_value'=>$_COOKIE['vwcredits_transaction_room']);
+	///$form['f']['ttype']=array('#type'=>'select','#title'=>t("Transaction Type"),'#options'=>array('','D'=>'Dr','C'=>'Cr'),'#default_value'=>$_COOKIE['vwcredits_transaction_ttype']);
+	//$form['f']['module']=array('#type'=>'select','#title'=>t("Source"),'#options'=>array(''=>'','vls'=>t('VLS'),'vconsult'=>t('V Consult'),'w2vc'=>t('2 Way Video Chat'),'admin'=>t('Admin'),'paypal'=>t('Paypal'),'plimus'=>t('Plimus')),'#default_value'=>$_COOKIE['vwcredits_transaction_module']);
+	$form['f']['type'] = array('#type' => 'select', '#title' => t("Type"), '#options' => array('' => t('All'), 'ownerscost' => t('Owners cost'), 'ownersroomcost' => t('Owners room cost'), 'ownersgain' => t('Owners gain'), 'roomcost' => t('Room Cost'), 'freereg' => t('Free Reg.'), 'withdraw' => t('Withdrawal'), 'payment' => t('Payment'), 'admin' => t('Admin Action')), '#default_value' => $_COOKIE['vwcredits_transaction_type']);
+
+	$form['f']['c'] = array('#type' => 'fieldset', '#title' => t('Display Columns'));
+
+	///$cheked=isset($_COOKIE['vwcredits_transaction_showroom'])?$_COOKIE['vwcredits_transaction_showroom']=='Y':variable_get('vwcredits_transaction_showroom','');
+
+	///$form['f']['c']['showroom']=array('#type'=>'checkbox','#title'=>t('Rooms'),'#value'=>$cheked,'#return_value'=>'Y');
+
+	$cheked = isset($_COOKIE['vwcredits_transaction_showcomment']) ? $_COOKIE['vwcredits_transaction_showcomment'] == 'Y' : variable_get('vwcredits_transaction_showcomment', 'Y');
+	$form['f']['c']['showcomment'] = array('#type' => 'checkbox', '#title' => t('Comment'), '#value' => $cheked, '#return_value' => 'Y');
+
+
+	$cheked = isset($_COOKIE['vwcredits_transaction_showroom']) ? $_COOKIE['vwcredits_transaction_showroom'] == 'Y' : variable_get('vwcredits_transaction_showroom', 'Y');
+	$form['f']['c']['showroom'] = array('#type' => 'checkbox', '#title' => t('Room'), '#value' => $cheked, '#return_value' => 'Y');
+
+
+	$form['f']['#redirect'] = 'vwcredits/transaction';
+	$form['f']['reset'] = array(
+		'#markup' => '<input class="form-button" type="reset" value=" Reset " />',
+	);
+	$form['f']['submit'] = array('#type' => 'submit', '#value' => t('Filter'));
+	return $form;
+
+}
+
+
+
+function vwcredits_tcancel($tid) {
+
+	$f = db_query("select * from {vwcredits_transaction} where tid=". $tid)->fetchObject();
+
+	$amt = $f->amt ? $f->amt : $f->credit;
+
+	if (!$amt) {
+		echo 'error:wrong transaction';
+		exit;
+
+	}
+	if ($f->trans_type == 'D') {
+		$amt = -$amt;
+	}
+
+	// TODO Please convert this statement to the D7 database API syntax.
+	db_query("update {vwcredits_credit} set bal=bal+$amt where uid=$f->uid");
+	// TODO Please convert this statement to the D7 database API syntax.
+	db_query("update {vwcredits_tmpcr} set bal=bal+$amt where uid=$f->uid");
+	db_query("delete from {vwcredits_transaction} where tid=". $tid);
+	if ($f->type == 'roomcost') {
+		$og = $f->ramt;
+		$ruid = $f->ruid;
+		if ($og) {
+			// TODO Please convert this statement to the D7 database API syntax.
+			db_query("update {vwcredits_credit} set bal=bal+$og where uid=$fo->uid");
+			// TODO Please convert this statement to the D7 database API syntax.
+			db_query("update {vwcredits_tmpcr} set bal=bal+$og where uid=$fo->uid");
+			// TODO Convert "user_load" to "user_load_multiple" if "$f->uid" is other than a uid.
+			// To return a single user object, wrap "user_load_multiple" with "array_shift" or equivalent.
+			// Example: array_shift(user_load_multiple(array(), $f->uid))
+			$user = user_load($f->uid);
+
+			$co = t('Owners gain reversed for cancellation of roomcost @r for user @u uid @id', array('@r' => $f->room_nid, '@u' => $user->name, '@id' => $f->uid));
+			// TODO Please convert this statement to the D7 database API syntax.
+			db_query("insert into {vwcredits_transaction} set uid=$ruid ,trans_type='D' ,
+			type='credit_reversal' ,credit=$og, trans_time=now(),room_nid=$f->room_nid,applied=1,app_time=now(),
+			context=:s1,comment=:s2  ", array(':s1'=>$f->context, ':s2'=>$co));
+
+		}
+
+	}
+
+
+	echo "OK:transaction deleted";
+
+	exit;
+}
+
+
+
+function vwcredits_transactions() {
+
+
+	db_query("delete from {vwcredits_transaction} where amt=0 and credit=0 and applied=1");
+
+
+
+	$url = url('vwcredits/tcancel', array('absolute' => true));
+	drupal_add_js('
+	$=jQuery.noConflict();
+	$(function(){
+	$(".vwcredits-checkbox").click(function(){
+	var checked=$(this).attr("checked");
+	var box=$(this);
+	if(checked){
+	if(!confirm("Confirm to proceed")){
+	$(this).attr("checked","");
+	return;
+	}
+	var val=$(this).attr("value");
+
+	$.ajax({
+	type: "GET",
+	data: {js:1,uid:val},
+	url: "' . $url . '",
+	success: function (response) {
+	alert(response);
+	if(response.match(/^error/)){
+	$(box).attr("disabled","");
+
+	return;
+	}
+
+	$(box).attr("disabled","disabled");
+	}
+	});
+
+	}//checked
+
+	});
+
+	});
+
+
+
+
+
+
+	', array('type' => 'inline'));
+
+
+
+
+
+	global $user;
+	$uid = $user->uid;
+	$form = drupal_render(drupal_get_form('vwcredits_transaction_filter'));
+	$where = array();
+	$args = array();
+	if ($_COOKIE['vwcredits_transaction_user'] && user_access('administer vwcredits')) {
+		$where[] = "  u.name like :uname or u.mail like :umail ";
+		$args['uname'] = '%'.$_COOKIE['vwcredits_transaction_user'].'%';
+		$args['umail'] = '%'.$_COOKIE['vwcredits_transaction_user'].'%';
+
+	}
+	if ($_COOKIE['vwcredits_transacation_datef']) {
+		$where[] = " t.trans_time >= from_unixtime(:td)";
+		sscanf($_COOKIE['vwcredits_transaction_datef'], "%d-%d-%d %d:%d:%d", $y, $m, $d, $h, $i, $s);
+		$args['td'] = mktime($h, $i, $s, $y, $m, $d);
+	}
+	if ($_COOKIE['vwcredits_transaction_datet']) {
+		sscanf($_COOKIE['vwcredits_transaction_datet'], "%d-%d-%d %d:%d:%d", $y, $m, $d, $h, $i, $s);
+		$where[] = " t.trans_time <= from_unixtime(:tt)";
+		$args['tt'] = mktime($h, $i, $s, $y, $m, $d);
+
+	}
+	/*
+	 if($_COOKIE['vwcredits_transaction_room']){
+	$where[] =" n.title like '%%%s%%' ";
+	$args[]=$_COOKIE['vwcredits_transaction_room'];
+	}
+	*/
+	if ($_COOKIE['vwcredits_transaction_ctx']) {
+		$where[] = " t.context like :ct ";
+		$args['ct'] ='%' .$_COOKIE['vwcredits_transaction_ctx'].'%';
+	}
+	/*
+	 if($_COOKIE['vwcredits_transaction_module']){
+
+	$where[]=" n.type='%s' ";
+	$args[]=$_COOKIE['vwcredits_transaction_module'];
+
+
+	}*/
+
+	if ($_COOKIE['vwcredits_transaction_type']) {
+
+		$where[] = " t.type=:tp ";
+		$args['tp'] = $_COOKIE['vwcredits_transaction_type'];
+
+	}
+
+	if ($_COOKIE['vwcredits_transaction_filterroom']=='Y') {
+
+
+
+		$where[] = " t.room_nid is not null and t.room_nid>0 ";
+
+//		$args['tp'] = $_COOKIE['vwcredits_transaction_type'];
+
+
+
+	}
+
+	if($_GET['filterroom'])
+
+		$where[] =" t.room_nid= ".(int)$_GET['room']." ";
+
+
+
+
+	if (!user_access('administer vwcredits')) {
+
+		$where[] = " t.uid=$uid ";
+		$where[]=" ( (n.uid=u.uid)  or ((n.uid!=u.uid)  and t.type not in ('ownersgain','ownerscost','ownersroomcost')   )  or n.nid is null   )  ";
+
+
+	}
+
+
+
+	$where[] = 1;
+	$where = "where " . implode(" and ", $where);
+
+	$limit = 50;
+
+
+	$sql = "select  n.title,t.applied,t.tid,u.name,u.uid , t.amt,t.credit,t.trans_type,t.type,t.trans_time,t.comment,timediff(t.app_time,t.trans_time) as se,t.room_nid from
+
+	 {vwcredits_transaction} t
+	inner join {users} u on (u.uid=t.uid) left join {node} n on (n.nid=t.room_nid)  $where";
+
+	$csql = "select  count(*) from {vwcredits_transaction} t inner join {users} u on (u.uid=t.uid)  left join {node} n on (n.nid=t.room_nid)  $where";
+
+
+	$header = array(array('data' => t('ID'), 'field' => 'tid', 'sort' => 'desc'), array('data' => t('User'), 'field' => 'name'), array('data' => t('Amount'), 'field' => 'amt'),
+	array('data' => t('Credit'), 'field' => 'credit'), array('data' => t('Type'), 'field' => 'type'), array('data' => t('Date'), 'field' => 'trans_time'),array('data' => t('Session'), 'field' => 'se'));
+	///	if(user_access('administer vwcredits'))
+	///	$header[]=t('Cancel');
+
+	//	if($_COOKIE['vwcredits_transaction_showroom']=='Y')
+	//	$header[]=t('Room');
+	if ($_COOKIE['vwcredits_transaction_showcomment'] == 'Y'||(!$_COOKIE['vwcredits_transaction_showcomment'])) {
+		$header[] = t('Comment');
+
+	}
+	if ($_COOKIE['vwcredits_transaction_showroom'] == 'Y'||!$_COOKIE['vwcredits_transaction_showroom']) {
+		$header[] = array('data'=>t('Room'),'field'=>'title');
+	}
+
+	$data = array();
+
+
+
+/*	$sql .= tablesort_sql($header);
+	if (count($args)) {
+		$q = pager_query($sql, $limit, 0, $csql, $args);
+	}
+	else {
+		$q = pager_query($sql, $limit, 0, $csql);
+	}
+	*/
+
+$q=vwrooms_pager_query($sql, $csql, $args, $header,$limit);
+	while ($f = $q->fetchObject()) {
+
+		if ($f->trans_type == 'C') {
+			$m = '+';
+			$cl = 'green';
+		}
+		else if ($f->trans_type == 'D') {
+			$m = '-';
+			$cl = 'red';
+		}
+		$amt = '';
+		$crt = '';
+		if ($f->amt) {
+			$amt = "<span style='color:$cl'>" . $m . $f->amt . '</span>';
+		}
+		else if ($f->credit) {
+
+
+			$crt = "<span style='color:$cl'>" . $m . number_format($f->credit, 2) . '</span>';
+
+		}
+		if ($f->comment) {
+
+			$tid = '<a href="#" title="'.htmlspecialchars($f->comment).'">' . $f->tid .  '</a>';
+
+			$type = '<a href="#" title="'.htmlspecialchars($f->comment).'"><u>' . $f->type .  '</u></a>';
+
+
+		}
+		else {
+			$tid = $f->tid;
+			$type=$f->type;
+		}
+
+
+
+		$can = '';
+		if (user_access('administer vwcredits')) {
+			$can = "<input type='checkbox' value='$f->tid' />";
+		}
+		$se='--';
+if($f->applied&&in_array($f->type,array('ownerscost','ownersgain','roomcost','ownersroomcost'))){
+	$se=$f->se;
+
+}
+		$d = array($tid, l($f->name, "user/$f->uid"), $amt, $crt, $type, $f->trans_time,$se);
+
+		//		if($_COOKIE['vwcredits_transaction_showroom']=='Y')
+		//$data[]=l($f->title,"node/$f->nid");
+		if ($_COOKIE['vwcredits_transaction_showcomment'] == 'Y'||(!$_COOKIE['vwcredits_transaction_showcomment'])) {
+		$d[] = $f->comment;
+		}
+
+		if ($_COOKIE['vwcredits_transaction_showroom'] == 'Y'||(!$_COOKIE['vwcredits_transaction_showroom'])) {
+$room="--";
+			if($f->room_nid){
+				$r=db_select("node",'n')->fields("n",array( 'type','title'))->condition("nid",$f->room_nid)->execute();
+
+
+//$r=db_select("vwrooms",'v')->fields("r",array('room','nid'))->condition("nid",$f->room_nid);
+if($r){
+	$r=$r->fetch();
+	$type=$r->type;
+	$title=$r->title;
+	if($title)
+	$room=l($title,"vwcredits/payments/transactions/",array('query'=>array('filterroom'=>'Y','room'=>$f->room_nid)));
+	else
+	$room=t('n/a');
+
+}else{
+	$room=t("n/a");
+}
+
+			}
+			$d[] = $room;
+		}
+		$data[] = $d;
+	}
+
+		return $form . theme('table', array('header' => $header, 'rows' => $data)) . vwrooms_pager()."<br/>".t('Amount field is  applicable for monetory transactions and Credit field for room  related transactions,admin credits etc.');
+
+}
+
+
+
+		function vwcredits_pay_paypal($pid) {
+			global $user;
+
+			if (!$user->uid) {
+				return t('You need to login to access this page.');
+
+			}
+
+			$pid=(int)$pid;
+
+			$server = 'https://' . variable_get('vwcredits_paypal_host', 'www.paypal.com') . '/cgi-bin/webscr';
+			$business = variable_get('vwcredits_paypal_business', '');
+			$pay = db_query("select * from {vwcredits_pack} where pid=".$pid)->fetchObject();
+
+			$pay->business = variable_get('vwcredits_paypal_business', '');
+			$pay->currency = variable_get('vwcredits_paypal_currency', '');
+			if (!$pay->active) {
+				return t('No package');
+				exit;
+			}
+			if (!$pay->business) {
+				return t('Method not available');
+			}
+
+			// TODO Please convert this statement to the D7 database API syntax.
+			$insert =	db_query("insert into {vwcredits_payment} set
+			business='$pay->business',currency='$pay->currency',credit='$pay->credit',amt='$pay->price',item='$pay->pid',
+			cdate=now(),status=0,uid=$user->uid ");
+
+
+			$order_id =db_query("select last_insert_id()")->fetchField();// db_last_insert_id('{vwcredits_payment}', 'order_id');
+			if (!$order_id) {
+				return t('error. please try later.');
+
+			}
+
+			$cancel_url = url("vwcredits/payments/packagelist", array('absolute' => true) );
+			$url = url("vwcredits/thanks", array('absolute' => true) );
+			$nurl = url("vwcredits/paypalipn", array('absolute' => true));
+
+			if (!$pay->subscription) {
+				$str = <<<strr
+<html>
+<body onload="document.ppform.submit()">
+<form action="$server" method="post" name='ppform'>
+<input type="hidden" name="cmd" value="_xclick"/>
+<input type="hidden" name="business" value="$business"/>
+<input type="hidden" name="item_number" value="$pay->pid"/>
+<input type="hidden" name="item_name" value="$pay->name"/>
+<input type="hidden" name="currency_code" value="$pay->currency"/>
+<input type="hidden" name="no_note" value="1"/>
+<input type="hidden"  name="no_shipping" value="1"/>
+<input type="hidden" name="amount" value="$pay->price"></input>
+  <input type="hidden" name="cancel_return" value="$cancel_url"/>
+  <input type="hidden" name="notify_url" value="$nurl"/>
+   <input type="hidden" name="return" value="$url"/>
+   <input type="hidden" name="custom" value="$user->uid"/>
+  <input type="hidden" name="invoice" value="$order_id"/>
+
+
+</form>
+</body>
+</html>
+strr;
+			}
+			else {
+
+				$str = <<<strr
+<html>
+<body onload="document.ppform.submit()">
+<form action="$server" method="post" name="ppform">
+  <input type="hidden" name="cmd" value="_xclick-subscriptions"/>
+  <input type="hidden" name="business" value="$business"/>
+  <input type="hidden" name="item_name" value="$pay->name"/>
+  <input type="hidden" name="item_number" value="$pid"/>
+
+  <input type="hidden" name="no_shipping" value="1"/>
+  <input type="hidden" name="notify_url" value="$nurl"/>
+   <input type="hidden" name="return" value="$url"/>
+  <input type="hidden" name="t3" value="M"/>
+  <input type="hidden" name="cancel_return" value="$cancel_url"/>
+  <input type="hidden" name="a3" value="$pay->price">
+  <input type="hidden" name="p3" value="1"/>
+  <input type="hidden" name="src" value="1"/>
+  <input type="hidden" name="no_note" value="1"/>
+  <input type="hidden" name="custom" value="$user->uid"/>
+  <input type="hidden" name="invoice" value="$order_id"/>
+<input type="hidden" name="currency_code" value="$pay->currency"/>
+</form>
+</body>
+</html>
+strr;
+
+
+			}
+
+
+
+
+			echo $str;
+			exit;
+
+		}
+
+
+		function vwcredits_pay_plimus($pid) {
+			global $user;
+$pid=(int)$pid;
+
+			if (!$user->uid) {
+				return t('You need to login to access this page.');
+
+			}
+
+
+			$p = variable_get("vwcredits_plimus_link", '');
+			if (!$p) {
+				return t('Method not available.');
+			}
+
+
+			$pay = db_query("select * from {vwcredits_pack} where pid=$pid ")->fetchObject();
+			$pay->currency = variable_get('vwcredits_paypal_currency', '');
+
+
+			if (!$pay->active) {
+				exit;
+			}
+			if (!$pay->plimus_cid) {
+				return t('Method not available.');
+
+			}
+
+			// TODO Please convert this statement to the D7 database API syntax.
+			$insert =	db_query("insert into {vwcredits_payment} set currency='$pay->currency',credit='$pay->credit',
+			amt='$pay->price',item='$pay->pid',cdate=now(),status=0,
+			uid=$user->uid,plimus_cid='$pay->plimus_cid' ");
+///			$order_id = $insert;//db_last_insert_id('{vwcredits_payment}', 'order_id');
+			$order_id =db_query("select last_insert_id()")->fetchField();
+			if (!$order_id) {
+				return t('error. please try later.');
+
+			}
+			$link = $p . '&contracts=' . $pay->plimus_cid . '&checkoutOnly=N&shoppingListStyle=N&storeTemplateId=' . $pay->store_tid . '&custom1=' . $order_id . '&custom2=' . $user->uid;
+
+			drupal_goto($link);
+
+
+
+		}
+
+
+
+
+		function vwcredits_pay_page($pid) {
+			$pay = db_query("select * from {vwcredits_pack} where pid=$pid and active=1")->fetchObject();
+
+			$pay->business = variable_get('vwcredits_paypal_business', '');
+
+			return theme('vwcredits_paypage', array('pay' => $pay));
+
+
+
+
+		}
+
+		function vwcredits_addcr_form_submit($form, &$form_state) {
+			$v = $form_state['values'];
+
+
+			$bal	= (float)$v['credit'];
+			$type = 'C';
+			if ($bal < 0) {
+				$type = 'D';
+			}
+
+			$uid = db_query("select uid from {users} where name=:s", array(':s'=>$v['uname']))->fetchField();
+			if (!$uid) {
+				return;
+			}
+			//db_lock_table('{vwcredits_credit}');
+			//db_lock_table('{vwcredits_tmpcr}');
+			//db_lock_table('{vwcredits_transaction}');
+
+			$f = db_query("select uid from {vwcredits_credit} where uid=". $uid)->fetchField();
+
+			if (!$f) {
+				db_query("insert into {vwcredits_credit} set uid=$uid,bal=$bal ");
+			}
+			else {
+				db_query("update {vwcredits_credit} set bal=bal+$bal where uid=$uid");
+
+			}
+
+			$f = db_query("select uid from {vwcredits_tmpcr} where uid=". $uid)->fetchField();
+			if (!$f) {
+				db_query("insert into {vwcredits_tmpcr} set uid=$uid,bal=$bal,uname=:s ", array(':s'=> $v['uname']));
+			}
+			else {
+				db_query("update {vwcredits_tmpcr} set bal=bal+$bal where uid=$uid");
+			}
+
+			if ($bal > 0) {
+				$cr = t("credited");
+			}
+			else {
+				$cr = t("debited");
+				$bal = -$bal;
+			}
+			if (!$v['comment']) {
+				$comment = t('@t @c by admin.', array('@t' => $bal, '@c' => $cr));
+			}
+			else {
+				$comment = $v['comment'];
+			}
+
+			$ctx = "{$v[uname]} admin $cr";
+			// TODO Please convert this statement to the D7 database API syntax.
+			db_query("insert into {vwcredits_transaction} set credit=:s1 , trans_type='$type',type='admin',trans_time=now()
+			,uid=:s2,comment=:s3,context=:s4",array(':s1'=> $bal,':s2'=> $uid,':s3'=> $comment,':s4'=>$ctx));
+			drupal_set_message(t('Amount @a @t to account @u', array('@a' => $bal, '@t' => $cr, '@u' => $v['uname'])));
+			vwrooms_unlock_tables();
+		}
+
+
+		function vwcredits_addcr_form_validate($form, &$form_state) {
+			$v = $form_state['values'];
+			if ($v['credit'] == 0) {
+
+				form_set_error('', t('Invalid balance'));
+			}
+
+
+			if (!$v['uname']) {
+
+				form_set_error('', t('no user'));
+			}
+
+			$f = (float) $v['credit'];
+
+
+			$u = $v['uname'];
+
+			$f = db_query("select uid from {users} where name =:s",array(':s'=> $u))->fetchField();
+			if (!$f) {
+				form_set_error('uname', t('User not found'));
+			}
+
+		}
+
+
+
+
+		function vwcredits_addcr_form($form, $f, $vals) {
+
+			$form = array();
+
+			$form['uname'] = array('#title' => t('User'), '#type' => 'textfield', '#autocomplete_path' => 'user/autocomplete', '#default_value' => $vals['uname'], '#required' => true);
+			$form['credit'] = array('#type' => 'textfield', '#title' => t('Credit'), '#required' => true);
+
+			$form['comment'] = array('#type' => 'textarea', '#title' => t('Comment'));
+			$form['submit'] = array('#type' => 'submit', '#value' => t('Add Credit'));
+			return $form;
+		}
+
+
+
+
+		function vwcredits_admin_addcr($uname = '') {
+
+			return drupal_render(drupal_get_form('vwcredits_addcr_form', array('uname' => $uname)));
+
+
+
+		}
+
+
+
+		function vwcredits_pay_list() {
+			global $user;
+			if(!$user->uid){
+				return t("You need to !l to add and use credits.",array('!l'=>l(t("login"),"user/login")));
+
+			}
+
+			if (user_access('administer vwcredits')) {
+
+				return vwcredits_admin_addcr();
+
+			}
+
+			$fq = db_query("select * from {vwcredits_pack} where active=1");
+
+			$data = array();
+			while ($fo = $fq->fetchObject()) {
+				$f = new stdClass();
+				$f->name = $fo->name;
+				$f->credit = $fo->credit;
+
+				if ($f->subscription) {
+					$f->price = $fo->currency . ' ' . $fo->price . ' mo ';
+				}
+				else {
+
+					$f->price = $fo->currency . ' ' . $fo->price;
+
+				}
+				$f->pid = $fo->pid;
+
+				$data[] = $f;
+			}
+
+			return theme('vwcredits_paypages', array('data' => $data));
+
+
+
+
+		}
+
+
+
+
+		function vwcredits_package_form_submit($form, &$form_state) {
+			$v = &$form_state['values'];
+			if ($v['op'] == t('Delete')) {
+				if ($v['pid']) {
+					$fp = db_query("select * from {vwcredits_pack} where pid=". $v['pid'])->fetchObject();
+					if ($fp->active) {
+						drupal_set_message(t('Active package cannot be deleted'), 'error');
+
+						return;
+					}
+					db_query("delete from {vwcredits_pack} where pid=". $v['pid']);
+					drupal_set_message(t('Package deleted'), 'status');
+
+				}
+
+
+				return;
+			}
+			$sub = (int)$v['subscription'];
+			$active =(int)$v['active'];// $form_state['clicked_button']['#post']['active'];
+
+			$currency = variable_get('vwcredits_paypal_currency', 'USD');
+			$business = variable_get('vwcredits_paypal_business', '');
+//checkme
+			if ($v['pid']) {
+
+				db_query("update {vwcredits_pack} set name=:s1,dscr=:s2,
+credit=:s3,currency=:s4,business=:s5,price=:s6,
+subscription=:s7,
+active=:s8,plimus_cid=:s9,plimus_tid=:s10
+where pid=:s11   ", array(':s1'=>$v['name'],':s2'=> $v['dscr'],':s3'=> $v['credits'],
+				':s4'=>$currency, ':s5'=>$business, ':s6'=>$v['price'],':s7'=> (int)$sub,
+				':s8'=>(int)$active, ':s9'=>$v['plimus_cid'],':s10'=> $v['plimus_tid'], ':s11'=>$v['pid']));
+
+			}
+			else {
+				db_query("insert into {vwcredits_pack} set name=:s1,dscr=:s2,
+credit=:s3,currency=:s4,business=:s5,price=:s6,
+subscription=:s7,
+active=:s8
+,plimus_cid=:s9,plimus_tid=:s10
+   ",
+				array(':s1'=>$v['name'],':s2'=> $v['dscr'],
+				':s3'=> $v['credits'], ':s4'=>$currency, ':s5'=>$business,':s6'=> $v['price'], ':s7'=>(int)$sub, ':s8'=>(int)$active,
+				':s9'=> $v['plimus_cid'], ':s10'=>$v['plimus_tid']));
+			}
+
+			drupal_set_message(t('Package created/modified'), 'status');
+		}
+
+
+
+
+		function vwcredits_package_form_validate($form, &$form_state) {
+
+			$v = &$form_state['values'];
+
+			$cr = (float) $v['credits'];
+
+			$pr = (float) $v['price'];
+
+			if ($cr <= 0) {
+				form_set_error('credits', t('Invalid credit'));
+			}
+
+			if ($pr <= 0) {
+				form_set_error('price', t('Invalid price'));
+			}
+
+		}
+
+
+
+
+		function vwcredits_package_form($form, $v, $vals) {
+
+
+			$form = array();
+			$form['name'] = array('#type' => 'textfield', '#default_value' => $vals['name'], '#title' => t('Package Name'), '#required' => true);
+			$form['dscr'] = array('#type' => 'textarea', '#title' => t('Description'), '#required' => true, '#default_value' => $vals['dscr']);
+			$form['credits'] = array('#type' => 'textfield', '#title' => t('Credits'), '#required' => true, '#default_value' => $vals['credit']);
+
+
+
+			$form['price'] = array('#type' => 'textfield', '#title' => t('Price'), '#required' => true, '#default_value' => $vals['price']);
+
+			$form['subscription'] = array('#type' => 'checkbox', '#title' => t('Subscription'), '#return_value' => 1, '#default_value' => $vals['subscription']);
+
+
+			$form['plimus_cid'] = array('#title' => t('Plimus ContractID'), '#type' => 'textfield', '#default_value' => $vals['plimus_cid']);
+			$form['plimus_tid'] = array('#title' => t('Plimus StoreTemplate ID'), '#type' => 'textfield', '#default_value' => $vals['plimus_tid']);
+
+			$form['active'] = array('#type' => 'checkbox', '#title' => t('Active'), '#default_value' => $vals['active'], '#return_value' => 1);
+
+			$form['pid'] = array('#type' => 'hidden', '#default_value' => $vals['pid']);
+			$form['submit'] = array('#type' => 'submit', '#value' => t('Submit'));
+			$form['delete'] = array('#type' => 'submit', '#value' => t('Delete')); //don't change Delete
+			$form_state['#redirect'] = 'vwcredits/packages';
+			return $form;
+
+
+
+
+
+		}
+
+
+
+
+		function vwcredits_create_package($pid = "") {
+
+			$fo = array();
+			if ($pid) {
+				$fo = db_query("select * from {vwcredits_pack} where pid=". $pid)->fetchAssoc();
+
+			}
+
+			return drupal_render(drupal_get_form('vwcredits_package_form', $fo));
+
+
+		}
+
+
+
+
+		function vwcredits_pay_adminlist() {
+
+			$fq = db_query("select * from {vwcredits_pack} order by pid desc");
+
+			$header = array(t('ID'), t('Name'), t('Credits'), t('Price'), t('Subscription'), t('Active'));
+			$data = array();
+			while ($f = $fq->fetchObject()) {
+
+				$data[] = array($f->pid, l($f->name, "vwcredits/packages/create/$f->pid"), $f->credit, $f->currency . ' ' . $f->price, $f->subscription ? "Y" : "N", $f->active ? "Y" : "N");
+
+
+			}
+			return theme('table', array('header' => $header, 'rows' => $data));
+
+		}
+
+
+
+
+		function vwcredits_plimus_ipn() {
+
+			/*
+			 *
+			* checkoutOnly
+			* contracts
+			* storeTemplateId
+			*
+			*/
+			$plimusIps = array("62.219.121.253", "209.128.93.248", "72.20.107.242", "209.128.93.229", "209.128.93.98", "209.128.93.230", "209.128.93.245", "209.128.93.104", "209.128.93.105", "209.128.93.107", "209.128.93.108", "209.128.93.242", "209.128.93.243", "209.128.93.254", "62.216.234.216", "62.216.234.218", "62.216.234.219", "62.216.234.220", "127.0.0.1", "localhost", "209.128.104.18", "209.128.104.19", "209.128.104.20", "209.128.104.21", "209.128.104.22", "209.128.104.23", "209.128.104.24", "209.128.104.25", "209.128.104.26", "209.128.104.27", "209.128.104.28", "209.128.104.29", "209.128.104.30", "209.128.104.31", "209.128.104.32", "209.128.104.33", "209.128.104.34", "209.128.104.35", "209.128.104.36", "209.128.104.37", "99.186.243.9", "99.186.243.10", "99.186.243.11", "99.186.243.12", "99.186.243.13", "99.180.227.233", "99.180.227.234", "99.180.227.235", "99.180.227.236", "99.180.227.237", "127.0.0.1");
+
+			//Check if the request came from Plimus IP
+			if (array_search($_SERVER['REMOTE_ADDR'], $plimusIps) == false) {
+				watchdog("vwcredits_plimus_ipn", $_SERVER['REMOTE_ADDR'] . " is not a plimus server!!!", NULL);
+				///	echo 'no server';
+				///exit;
+			}
+			//Put IPN Parameters in local varibales
+			$txn_type = $transactionType = strtolower( $_REQUEST['transactionType']);
+			$testMode = $_REQUEST['testMode'];
+			$txn_id = $_REQUEST['referenceNumber'];
+			$parent_txn_id = $_REQUEST['originalReferenceNumber'];
+			$paymentMethod = $_REQUEST['paymentMethod'];
+			$creditCardType = $_REQUEST['creditCardType'];
+			$transactionDate = $_REQUEST['transactionDate'];
+			$untilDate = $_REQUEST['untilDate'];
+			$productId = $_REQUEST['productId'];
+			$productName = $_REQUEST['productName'];
+			$contractId = $_REQUEST['contractId'];
+			$contractName = $_REQUEST['contractName'];
+			$contractOwner = $_REQUEST['contractOwner'];
+			$contractPrice = $_REQUEST['contractPrice'];
+			$quantity = $_REQUEST['quantity'];
+			$currency = $_REQUEST['currency'];
+			$addCD = $_REQUEST['addCD'];
+			$coupon = $_REQUEST['coupon'];
+			$couponValue = $_REQUEST['couponValue'];
+			$referrer = $_REQUEST['referrer'];
+			$accountId = $_REQUEST['accountId'];
+			$title = $_REQUEST['title'];
+			$firstName = $_REQUEST['firstName'];
+			$lastName = $_REQUEST['lastName'];
+			$company = $_REQUEST['company'];
+			$address1 = $_REQUEST['address1'];
+			$address2 = $_REQUEST['address2'];
+			$city = $_REQUEST['city'];
+			$state = $_REQUEST['state'];
+			$country = $_REQUEST['country'];
+			$zipCode = $_REQUEST['zipCode'];
+			$email = $_REQUEST['email'];
+			$workPhone = $_REQUEST['workPhone'];
+			$extension = $_REQUEST['extension'];
+			$mobilePhone = $_REQUEST['mobilePhone'];
+			$homePhone = $_REQUEST['homePhone'];
+			$faxNumber = $_REQUEST['faxNumber'];
+			$licenseKey = $_REQUEST['licenseKey'];
+			$shippingFirstName = $_REQUEST['shippingFirstName'];
+			$shippingLastName = $_REQUEST['shippingLastName'];
+			$shippingAddress1 = $_REQUEST['shippingAddress1'];
+			$shippingAddress2 = $_REQUEST['shippingAddress2'];
+			$shippingCity = $_REQUEST['shippingCity'];
+			$shippingState = $_REQUEST['shippingState'];
+			$shippingCountry = $_REQUEST['shippingCountry'];
+			$shippingZipCode = $_REQUEST['shippingZipCode'];
+			$remoteAddress = $_REQUEST['remoteAddress'];
+			$shippingMethod = $_REQUEST['shippingMethod'];
+			$couponCode = $_REQUEST['couponCode'];
+			$invoiceAmount = $_REQUEST['invoiceAmount'];
+			$invoiceInfoURL = $_REQUEST['invoiceInfoURL'];
+			$auth = $_REQUEST['authKey'];
+			$order_id = (int) $_REQUEST['invoice'];
+			$uid = (int) $_REQUEST['userid'];
+			$uname = db_query("select name from {users} where uid=". $uid)->fetchField();
+			if (!$uname) {
+				///echo "no username";
+
+				exit;
+			}
+			if (!$txn_id) {
+				echo 'no txn';
+				exit;
+			}
+
+			$authkey = variable_get("vwcredits_plimus_authkey", '');
+			if ($authkey) {
+				echo md5("OK" . $authkey);
+
+				$md5 = md5($txn_id . $contractId . $authkey);
+				if ($auth == $md5) {
+
+				///	echo md5("OK" . $authkey);
+				}
+				else {
+				watchdog('vwcredits_plimus_ipn', "invalid auth key", NULL);
+				}
+			}
+
+			if (!$order_id) {
+				///echo 'no order';
+				exit;
+			}
+/*correctable d*/
+			$pay = db_query("select * from {vwcredits_payment} where order_id=$order_id and uid=$uid")->fetchObject();
+			if (!$pay->order_id) {
+				///   	echo 'no pay order';
+				exit;
+			}
+			//   echo 'pay order';
+			if ($pay->plimus_cid != $contractId) {
+				///	echo 'different cid';
+				exit;
+			}
+			///echo 'cid';
+
+
+			$fo = db_query("select * from {vwcredits_ipn} where txn_id=? and method='plimus'",array($txn_id))->fetchObject();
+			if ($fo->txn_id) {
+				watchdog("vwcredits_plimus_ipn", 'already exist ' . $txn_id, NULL);
+				///echo 'already exist';
+				exit;
+			}
+
+
+			if ($transactionType == 'charge' || $transactionType == 'recurring') {
+				$txn_type = $transactionType;
+				///	echo "txn $transactionType";
+
+				// TODO Please convert this statement to the D7 database API syntax.
+				$fu = db_query("select uid from {vwcredits_credit} where uid=$uid")->fetchObject();
+
+				if ($fu->uid) {
+					// TODO Please convert this statement to the D7 database API syntax.
+					db_query("update {vwcredits_credit} set bal=bal+{$pay->credit} where uid=$uid ");
+					// TODO Please convert this statement to the D7 database API syntax.
+					db_query("update {vwcredits_tmpcr} set bal=bal+{$pay->credit} where uid=$uid ");
+
+
+				}
+				else {
+					watchdog('vwcredits_plimus_ipn', t('user acccount not found for ipn @t uid @u', array('@t' => $txn_id, '@u' => $uid)), WATCHDOG_ERROR);
+					//echo 'acc not found';
+					///exit;
+
+
+
+				}
+
+				$comment = t('@r from plimus  for amount @a cr @cr', array('@r' => $txn_type, '@a' => $currency . $invoiceAmount,'@cr'=>$pay->credit));
+
+
+				$context = "plimus $email $txn_id $transactionType $uname";
+
+				// TODO Please convert this statement to the D7 database API syntax.
+				db_query("insert into {vwcredits_transaction} set trans_type='C', type='payment',amt=:s1,credit=$pay->credit,uid=$uid,
+				comment=:s2,trans_time=now(),context=:s3", array(':s1'=>$currency . $invoiceAmount,':s2'=> $comment,':s3'=>$context));
+
+
+				// TODO Please review the conversion of this statement to the D7 database API syntax.
+				/* db_query("INSERT INTO {vwcredits_ipn} (order_id,uid, txn_id, txn_type,currency, mc_gross, status, receiver_email, payer_email, received,item,parent_txn_id,method,create_date)
+				VALUES (     %d,     %d, '%s',   '%s'    , '%s',       '%s',    '%s', '%s',            '%s',          %d,      %d,   '%s',      '%s',now())", $order_id, $uid, $txn_id, $txn_type, $currency, $invoiceAmount, 'completed', $receiver_email, $payer_email, REQUEST_TIME, $pay->item, null, 'plimus') */
+				$id = db_insert('vwcredits_ipn')
+				->fields(array(
+      'order_id' => $order_id,
+      'uid' => $uid,
+      'txn_id' => $txn_id,
+      'txn_type' => $txn_type,
+      'currency' => $currency,
+      'mc_gross' => $invoiceAmount,
+      'status' => 'completed',
+      'receiver_email' => $receiver_email,
+      'payer_email' => $payer_email,
+      'received' => REQUEST_TIME,
+      'item' => $pay->item,
+      'parent_txn_id' => null,
+      'method' => 'plimus',
+      'create_date' => format_date(time(),'custom','Y-m-d h:i:s'),
+				))
+				->execute();
+
+
+
+
+				db_query("update {vwcredits_payment} set status=1 where order_id=". $order_id);
+				///  echo 'updated';
+
+				exit;
+
+
+		}
+
+		if ($transactionType == 'refund' || $transactionType == 'chargeback' || $transactionType == 'cancellation refund' ||
+		$transactionType == 'cancellation chargeback' || $transactionType == 'cancel' || $transactionType == 'decline') {
+
+
+
+			$ptx = db_query("select * from {vwcredits_ipn} where txn_id='$parent_txn_id' and method='plimus'")->fetchObject();
+			if ($ptx->status == 'completed' && ($ptx->txn_type == 'charge' || $ptx->txn_type == 'recurring')) {
+
+				// TODO Please review the conversion of this statement to the D7 database API syntax.
+				/* db_query("INSERT INTO {vwcredits_ipn} (order_id,uid, txn_id, txn_type,currency, mc_gross, status, receiver_email, payer_email, received,item,parent_txn_id,method,create_date)
+				 VALUES (     %d,     %d, '%s',   '%s'    , '%s',       '%s',    '%s', '%s',            '%s',          %d,      %d,   '%s',      '%s',now())", $order_id, $uid, $txn_id, $transactionType, $currency, $invoiceAmount, 'refund', $receiver_email, $payer_email, REQUEST_TIME, $pay->item, null, 'plimus') */
+				$id = db_insert('vwcredits_ipn')
+				->fields(array(
+				'order_id' => $order_id,
+				'uid' => $uid,
+				'txn_id' => $txn_id,
+				'txn_type' => $transactionType,
+				'currency' => $currency,
+				'mc_gross' => $invoiceAmount,
+				'status' => 'refund',
+        'receiver_email' => $receiver_email,
+				'payer_email' => $payer_email,
+        'received' => REQUEST_TIME,
+        'item' => $pay->item,
+        'parent_txn_id' => null,
+        'method' => 'plimus',
+        'create_date' => format_date(time(),'custom','Y-m-d h:i:s'),
+      ))
+  ->execute();
+
+
+$refcr=abs(($invoiceAmount/$ptx->mc_gross)*$pay->credit);
+$refcr=number_format($refcr,2,'.','');
+
+				// TODO Please convert this statement to the D7 database API syntax.
+				db_query("update {vwcredits_credit} set bal=bal-{$refcr} where uid=$uid");
+
+
+					// TODO Please convert this statement to the D7 database API syntax.
+					db_query("update {vwcredits_tmpcr} set bal=bal-{$refcr} where uid=$uid");
+
+					$comment = t('@r from plimus  for amount @a cr @cr', array('@r' => $payment_status, '@a' => $payment_currency . $payment_amount,'@cr'=>$refcr));
+
+					$context = "plimus $email $txn_id $transactionType $uname $parent_txn_id credited$refcr";
+
+					// TODO Please convert this statement to the D7 database API syntax.
+					db_query("insert into {vwcredits_transaction} set trans_type='D', type='$transactionType',amt=:s1,
+					credit=$pay->credit,uid=$uid,comment=:s2,trans_time=now(),context=:s3",array(':s1'=> $currency . $invoiceAmount, ':s2'=>$comment,':s3'=>$context));
+
+
+
+
+
+			}
+					else {
+					$comment = t("@t from plimus id @i amt @a", array('@t' => $transactionType, '@i' => $txn_id, '@a' => $currency . $invoiceAmount));
+					// TODO Please review the conversion of this statement to the D7 database API syntax.
+					/* db_query("INSERT INTO {vwcredits_ipn} (order_id,uid, txn_id, txn_type,currency, mc_gross, status, receiver_email, payer_email, received,item,parent_txn_id,method,comment,create_date)
+					VALUES (     %d,     %d, '%s',   '%s'    , '%s',       '%s',    '%s', '%s',            '%s',          %d,      %d,   '%s',      '%s','%s',now())", $order_id, $uid, $txn_id, $transactionType, $currency, $invoiceAmount, 'others', $receiver_email, $payer_email, REQUEST_TIME, $pay->item, null, 'plimus') */
+					$id = db_insert('vwcredits_ipn')
+					->fields(array(
+        'order_id' => $order_id,
+					'uid' => $uid,
+					'txn_id' => $txn_id,
+					'txn_type' => $transactionType,
+					'currency' => $currency,
+					'mc_gross' => $invoiceAmount,
+					'status' => 'others',
+        'receiver_email' => $receiver_email,
+        'payer_email' => $payer_email,
+					'received' => REQUEST_TIME,
+					'item' => $pay->item,
+        'parent_txn_id' => null,
+					'method' => 'plimus',
+					'comment' =>$comment,
+        'create_date' =>format_date(time(),'custom','Y-m-d h:i:s'),
+      ))
+  ->execute();
+
+
+
+					exit;
+					}
+
+
+
+    exit;
+
+					}
+
+
+
+					exit;
+
+
+					}
+
+
+
+
+
+/*ce*/
+
+
+
+
+
+/**
+ * Handle an incoming paypal IPN
+ *
+ */
+function vwcredits_paypal_ipn() {
+
+
+  // Get ready to send the incoming query back to paypal to be verified
+  $req = 'cmd=_notify-validate';
+
+
+  // Process the incoming form results
+
+  foreach ($_POST as $key => $value) {
+    $req .= "&$key=" . urlencode(stripslashes($value));
+
+  }
+
+  $vwcredits_paypal_host = variable_get('vwcredits_paypal_host', 'www.paypal.com');
+  $business = variable_get('vwcredits_paypal_business', '');
+  // Validate this incoming IPN by sending it to PayPal to be checked
+  $ph = "POST /cgi-bin/webscr HTTP/1.0\r\n";
+  $ph .= "Content-Type: application/x-www-form-urlencoded\r\n";
+  $ph .= "Content-Length: " . strlen($req) . "\r\n\r\n";
+/*
+  $fp = fsockopen($vwcredits_paypal_host, 80, $errno, $errstr, 60);
+  if (!$fp) {
+    watchdog("vwcredits_paypal_ipn", 'Cannot validate with host: %host', array('%host' => check_plain($vwcredits_paypal_host)), WATCHDOG_ERROR);
+    // Return an HTTP error and hopefully PayPal will resend the IPN to me
+    // later on and then I can try validating again! Maybe PayPal is very busy
+    // or there is a network problem at the moment
+    drupal_add_http_header('Status', '404 Not Found');
+    return '';
+  }
+correctable d
+*/
+  $url='https:://'.$vwcredits_paypal_host;
+  $curl_result=$curl_err='';
+  $ch = curl_init();
+  curl_setopt($ch, CURLOPT_URL,$url);
+  curl_setopt($ch, CURLOPT_RETURNTRANSFER,1);
+  curl_setopt($ch, CURLOPT_POST, 1);
+  curl_setopt($ch, CURLOPT_POSTFIELDS, $req);
+  curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: application/x-www-form-urlencoded", "Content-Length: " . strlen($req)));
+  curl_setopt($ch, CURLOPT_HEADER , 0);
+  curl_setopt($ch, CURLOPT_VERBOSE, 1);
+  curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
+  curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+  $ret = @curl_exec($ch);
+  $curl_err = curl_error($ch);
+  curl_close($ch);
+
+/*
+  stream_set_timeout($fp, 60);
+$ret='';
+  // Put the headers and request body
+  fputs($fp, $ph . $req);
+  // Read the response line at a time. The last line is the response.
+  while (!feof($fp)) {
+    $ret .= fgets($fp, 1024);
+  }
+  fclose($fp);
+*/
+  $verified = (strcmp($ret, 'VERIFIED') == 0||!$ret);
+  watchdog("vwcredits_paypal_ipn", 'ipn response'." $vwcredits_paypal_host  <br/>" . $ret."<br/>".$req, NULL);
+
+  if (!$verified) {
+    watchdog("vwcredits_paypal_ipn", 'unverified '." $vwcredits_paypal_host  <br/>" . $ret."<br/>".$req, NULL);
+    exit;
+  }
+  $txn_id = $_POST['txn_id'];
+
+  if (!$txn_id) {
+    exit;
+  }
+  $fo = db_query("select * from {vwcredits_ipn} where txn_id='$txn_id' and method='paypal'")->fetchObject();
+  if ($fo->txn_id) {
+    watchdog("vwcredits_paypal_ipn", 'already exist ' . $txn_id, NULL);
+    exit;
+  }
+
+  $uid = intval($_POST['custom']);
+  $order_id = intval($_POST['invoice']);
+
+  $payment_status = strtolower( check_plain($_POST['payment_status']));
+  $payment_amount = check_plain($_POST['mc_gross']);
+  $payment_currency = check_plain($_POST['mc_currency']);
+  $payment_fee = check_plain($_POST['mc_fee']);
+  $receiver_email = check_plain($_POST['receiver_email']);
+  $txn_id = check_plain($_POST['txn_id']);
+  $txn_type = check_plain($_POST['txn_type']);
+  $payer_email = check_plain($_POST['payer_email']);
+  $item_number = $_POST['item_number'];
+  $record_txn_type = array('web_accept', 'subscr_payment', 'subscr_eot', 'subscr_cancel', 'subscr_eot');
+  $parent_txn_id = $_POST['parent_txn_id'];
+  $pay_txn_type = array('web_accept', 'subscr_payment');
+
+
+
+
+  watchdog("vwcredits_paypal_ipn", "vwcredits_ipn_in post-validate txn $txn_type status $payment_status parent $parent_txn_id ", NULL);
+  $pay = new stdClass();
+  $pay->item = 0;
+  if (!$order_id) {
+  	watchdog("vwcredits_paypal_ipn", "vwcredits_ipn no invoice $order_id");
+    exit;
+
+  }
+
+  $user = user_load($uid);
+  if (!$user->name) {
+  	watchdog("vwcredits_paypal_ipn", "vwcredits_ipn no user $custom");
+
+  	exit;
+
+  }
+  $uname = $user->name;
+
+
+
+  $pay = db_query("select * from {vwcredits_payment} where order_id=$order_id and uid=$uid")->fetchObject();
+  if (!$pay->item) {
+
+    watchdog("vwcredits_paypal_ipn", "order $order_id, txn_id $txn_id uid $uid  not found");
+    exit;
+  }
+  if ($pay->business != $receiver_email) {
+
+    watchdog("vwcredits_paypal_ipn", "order $order_id, receiver email $receiver_email business $pay->business");
+ exit;
+
+
+  }
+
+  if (in_array($txn_type, $pay_txn_type) !== false) {
+    if ($pay->amt != $payment_amount || $pay->currency != $payment_currency) {
+      watchdog('vwcredits_paypal_ipn', "amount /currency mismatch $payment_currency $payment_amount orderID $order_id uid $uid", NULL);
+
+      exit;
+    }
+
+
+
+
+  }
+  if ($txn_type == 'subscr_cancel' || $txn_type == 'subscr_eot' || $txn_type == 'subscr_modify') {
+
+    $comment = t('@t for subscr_id @i', array('@t' => $txn_type, '@i' => $_POST['subscr_id']));
+    // TODO Please review the conversion of this statement to the D7 database API syntax.
+    /* db_query("INSERT INTO {vwcredits_ipn} (order_id,uid, txn_id, txn_type,currency, mc_gross, status, receiver_email, payer_email, received,item,parent_txn_id,method,comment)
+     VALUES (     %d,     %d, '%s',   '%s'    , '%s',       '%s',    '%s', '%s',            '%s',          %d,      %d,   '%s',      '%s','%s')", $order_id, $uid, $txn_id, $txn_type, $payment_currency, $payment_amount, $payment_status, $receiver_email, $payer_email, REQUEST_TIME, $pay->item, null, 'paypal', $comment) */
+    $id = db_insert('vwcredits_ipn')
+  ->fields(array(
+      'order_id' => $order_id,
+      'uid' => $uid,
+      'txn_id' => $txn_id,
+      'txn_type' => $txn_type,
+      'currency' => $payment_currency,
+      'mc_gross' => $payment_amount,
+      'status' => $payment_status,
+      'receiver_email' => $receiver_email,
+      'payer_email' => $payer_email,
+      'received' => REQUEST_TIME,
+      'item' => $pay->item,
+      'parent_txn_id' => null,
+      'method' => 'paypal',
+      'comment' => $comment,
+    ))
+  ->execute();
+
+    exit;
+  }
+
+
+  if (($txn_type == 'web_accept' || $txn_type == 'subscr_payment') && $payment_status == 'completed') {
+
+    // TODO Please convert this statement to the D7 database API syntax.
+    $fu = db_query("select uid from {vwcredits_credit} where uid=$uid")->fetchObject();
+
+    if ($fu->uid) {
+
+      db_query("update {vwcredits_credit} set bal=bal+:f where uid=:d", array(':f'=>$pay->credit, ':d'=>$uid));
+      db_query("update {vwcredits_tmpcr} set bal=bal+:f where uid=:d", array(':f'=>$pay->credit, ':d'=>$uid));
+
+//      db_query("update {vwcredits_tmpcr} set bal=bal+%f where uid=%d", $pay->credit, $uid);
+
+    }
+    else {
+      watchdog('vwcredits_paypal_ipn', t('user acccount not found for ipn @t uid @u', array('@t' => $txn_id, '@u' => $uid)), WATCHDOG_ERROR);
+      exit;
+    }
+
+    $comment = t('@t from paypal  for amount @a cr @cr', array('@t' => $txn_type, '@a' => $payment_currency . $payment_amount,'@cr'=>$pay->credit));
+
+    $context = "paypal $payer_email $txn_id $txn_type $payment_status $uname";
+
+    // TODO Please convert this statement to the D7 database API syntax.
+    db_query("insert into {vwcredits_transaction} set context=:s1,trans_type='C', type='payment',amt=:s2,credit=$pay->credit,uid=$uid,comment=:s3,trans_time=now()", array(':s1'=>$context,
+    ':s2'=>$payment_currency . $payment_amount,':s3'=> $comment));
+
+
+    // TODO Please review the conversion of this statement to the D7 database API syntax.
+    /* db_query("INSERT INTO {vwcredits_ipn} (order_id,uid, txn_id, txn_type,currency, mc_gross, status, receiver_email, payer_email, received,item,parent_txn_id,method,create_date)
+     VALUES (     %d,     %d, '%s',   '%s'    , '%s',       '%s',    '%s', '%s',            '%s',          %d,      %d,   '%s',      '%s',now())", $order_id, $uid, $txn_id, $txn_type, $payment_currency, $payment_amount, $payment_status, $receiver_email, $payer_email, REQUEST_TIME, $pay->item, null, 'paypal') */
+    $id = db_insert('vwcredits_ipn')
+  ->fields(array(
+      'order_id' => $order_id,
+      'uid' => $uid,
+      'txn_id' => $txn_id,
+      'txn_type' => $txn_type,
+      'currency' => $payment_currency,
+      'mc_gross' => $payment_amount,
+      'status' => $payment_status,
+      'receiver_email' => $receiver_email,
+      'payer_email' => $payer_email,
+      'received' => REQUEST_TIME,
+      'item' => $pay->item,
+      'parent_txn_id' => null,
+      'method' => 'paypal',
+      'create_date' => format_date(time(),'custom','Y-m-d h:i:s'),
+    ))
+  ->execute();
+
+
+
+
+
+    db_query("update {vwcredits_payment} set status=1 where order_id=". $order_id);
+
+
+
+    exit;
+  }
+  if ($payment_status == 'refunded' || $payment_status == 'reversed') {
+
+    if (!$txn_type) {
+      $txn_type = 'paypalrefund';
+    }
+
+    watchdog("vwcredits_paypal_ipn", "refunded invoice $order_id user $uid parent $parent_txn_id");
+
+    $ptx = db_query("select * from {vwcredits_ipn} where txn_id=? and method='paypal'",array( $parent_txn_id))->fetchObject();
+//$refcr=$pay->credit;
+    if ($ptx->status == 'completed' && ($ptx->txn_type == 'web_accept' || $ptx->txn_type == 'subscr_payment')) {
+
+    	$refcr=number_format(abs((float)($payment_amount/$ptx->mc_gross)*$pay->credit),2,'.','');
+
+
+
+
+      $fx = db_query("select * from {vwcredits_ipn} where parent_txn_id='$parent_txn_id' and status='canceled_reversal'")->fetchObject();
+      if ($fx->txn_id) { //already received the funds back do nothing except record
+        // TODO Please review the conversion of this statement to the D7 database API syntax.
+        /* db_query("INSERT INTO {vwcredits_ipn} (order_id,uid, txn_id, txn_type,currency, mc_gross, status, receiver_email, payer_email, received,item,parent_txn_id,method,create_date)
+         VALUES (     %d,     %d, '%s',   '%s'    , '%s',       '%s',    '%s', '%s',            '%s',          %d,      %d,   '%s',      '%s',now())", $order_id, $uid, $txn_id, $txn_type, $payment_currency, $payment_amount, $payment_status, $receiver_email, $payer_email, REQUEST_TIME, $pay->item, $parent_txn_id, 'paypal') */
+        $id = db_insert('vwcredits_ipn')
+  ->fields(array(
+          'order_id' => $order_id,
+          'uid' => $uid,
+          'txn_id' => $txn_id,
+          'txn_type' => $txn_type,
+          'currency' => $payment_currency,
+          'mc_gross' => $payment_amount,
+          'status' => $payment_status,
+          'receiver_email' => $receiver_email,
+          'payer_email' => $payer_email,
+          'received' => REQUEST_TIME,
+          'item' => $pay->item,
+          'parent_txn_id' => $parent_txn_id,
+          'method' => 'paypal',
+          'create_date' => format_date(time(),'custom','Y-m-d h:i:s'),
+        ))
+  ->execute();
+
+
+
+        exit;
+      }
+
+
+
+      // TODO Please convert this statement to the D7 database API syntax.
+      db_query("update {vwcredits_credit} set bal=bal-{$refcr} where uid=$uid");
+
+
+      // TODO Please convert this statement to the D7 database API syntax.
+      db_query("update {vwcredits_tmpcr} set bal=bal-{$refcr} where uid=$uid");
+
+      $comment = t('@r from paypal  for amount @a cr @cr', array('@r' => $payment_status, '@a' => $payment_currency . $payment_amount,'@cr'=>$refcr));
+      $context = "paypal $payer_email $txn_id $txn_type $payment_status $parent_txn_id $uname credited$refcr";
+
+      // TODO Please convert this statement to the D7 database API syntax.
+      db_query("insert into {vwcredits_transaction} set context=:s1,trans_type='D', type='$payment_status',amt=:s2,credit=$pay->credit,uid=$uid,comment=:s3,trans_time=now()",
+      array(':s1'=>$context,':s2'=>$payment_currency . $payment_amount, ':s3'=>$comment));
+
+      // TODO Please review the conversion of this statement to the D7 database API syntax.
+      /* db_query("INSERT INTO {vwcredits_ipn} (order_id,uid, txn_id, txn_type,currency, mc_gross, status, receiver_email, payer_email, received,item,parent_txn_id,method,creat_date)
+       VALUES (     %d,     %d, '%s',   '%s'    , '%s',       '%s',    '%s', '%s',            '%s',          %d,      %d,   '%s',      '%s',now())", $order_id, $uid, $txn_id, $txn_type, $payment_currency, $payment_amount, $payment_status, $receiver_email, $payer_email, REQUEST_TIME, $pay->item, $parent_txn_id, 'paypal') */
+      $id = db_insert('vwcredits_ipn')
+  ->fields(array(
+        'order_id' => $order_id,
+        'uid' => $uid,
+        'txn_id' => $txn_id,
+        'txn_type' => $txn_type,
+        'currency' => $payment_currency,
+        'mc_gross' => $payment_amount,
+        'status' => $payment_status,
+        'receiver_email' => $receiver_email,
+        'payer_email' => $payer_email,
+        'received' => REQUEST_TIME,
+        'item' => $pay->item,
+        'parent_txn_id' => $parent_txn_id,
+        'method' => 'paypal',
+        'create_date' => format_date(time(),'custom','Y-m-d h:i:s'),
+      ))
+  ->execute();
+
+
+
+    }
+    else {
+     watchdog('vwcredits_paypal_ipn','parent txn not found '.$parent_txn_id);
+      exit;
+    }
+
+
+
+  }
+  else if ($payment_status == 'canceled_reversal') {
+    $ptx = db_query("select * from {vwcredits_ipn} where txn_id='$parent_txn_id' and method='paypal'")->fetchObject();
+    if (!$ptx->txn_id) {
+      exit;
+    }
+    if (!$txn_type) {
+      $txn_type = 'paypalrepayment';
+    }
+
+    $fx =db_query("select * from {vwcredits_ipn} where parent_txn_id='$parent_txn_id' and status='reversed' and method='paypal'")->fetchObject();
+
+
+    if (!$fx->txn_id) { //no refund for this reversal do nothing except record
+      $comment = t("Canceled reversal received from paypal for txn_id @t without prior reversal ", array('@t' => $parent_txn_id));
+      $fc = db_query("select * from {vwcredits_ipn} where parent_txn_id='$parent_txn_id' and status='reversed' ")->fetchObject();
+
+      // TODO Please review the conversion of this statement to the D7 database API syntax.
+      /* db_query("INSERT INTO {vwcredits_ipn} (order_id,uid, txn_id, txn_type,currency, mc_gross, status, receiver_email, payer_email, received,item,parent_txn_id,method,comment,create_date)
+       VALUES (     %d,     %d, '%s',   '%s'    , '%s',       '%s',    '%s', '%s',            '%s',          %d,      %d,   '%s',      '%s'      , '%s',now())", $order_id, $uid, $txn_id, $txn_type, $payment_currency, $payment_amount, $payment_status, $receiver_email, $payer_email, REQUEST_TIME, $pay->item, $parent_txn_id, 'paypal', $comment) */
+      $id = db_insert('vwcredits_ipn')
+  ->fields(array(
+        'order_id' => $order_id,
+        'uid' => $uid,
+        'txn_id' => $txn_id,
+        'txn_type' => $txn_type,
+        'currency' => $payment_currency,
+        'mc_gross' => $payment_amount,
+        'status' => $payment_status,
+        'receiver_email' => $receiver_email,
+        'payer_email' => $payer_email,
+        'received' => REQUEST_TIME,
+        'item' => $pay->item,
+        'parent_txn_id' => $parent_txn_id,
+        'method' => 'paypal',
+        'comment' => $comment,
+        'create_date' => format_date(time(),'custom','Y-m-d h:i:s')
+      ))
+  ->execute();
+
+      exit;
+    }
+
+preg_match('/credited(\d+\.\d{2})$/',$fx->context,$m);
+$refcr=    $orcr=number_format(abs((float)$m[1]*($payment_amount/$fx->mc_gross)),2,'.','');
+
+
+    $context = "paypal $payer_email $txn_id $txn_type $payment_status $parent_txn_id $uname";
+
+    $comment = t("Cancelled reversal received from paypal for txn_id @t for  reversal txn_id @t1 cr @cr", array('@t' => $parent_txn_id, '@t1' => $fx->txn_id,'@cr'=>$refcr));
+    // TODO Please convert this statement to the D7 database API syntax.
+    db_query("insert into {vwcredits_transaction} set context=:s1,trans_type='C', type='$payment_status',amt=:s2,credit=$pay->credit,uid=$uid,comment=:s3,trans_time=now()"
+    , array(':s1'=>$context,':s2'=>$payment_currency . $payment_amount,':s3'=> $comment));
+
+    // TODO Please review the conversion of this statement to the D7 database API syntax.
+    /* db_query("INSERT INTO {vwcredits_ipn} (order_id,uid, txn_id, txn_type,currency, mc_gross, status, receiver_email, payer_email, received,item,parent_txn_id,method,create_date)
+     VALUES (     %d,     %d, '%s',   '%s'    , '%s',       '%s',    '%s', '%s',            '%s',          %d,      %d,   '%s',      '%s',now())", $order_id, $uid, $txn_id, $txn_type, $payment_currency, $payment_amount, $payment_status, $receiver_email, $payer_email, REQUEST_TIME, $pay->item, null, 'paypal') */
+    $id = db_insert('vwcredits_ipn')
+  ->fields(array(
+      'order_id' => $order_id,
+      'uid' => $uid,
+      'txn_id' => $txn_id,
+      'txn_type' => $txn_type,
+      'currency' => $payment_currency,
+      'mc_gross' => $payment_amount,
+      'status' => $payment_status,
+      'receiver_email' => $receiver_email,
+      'payer_email' => $payer_email,
+      'received' => REQUEST_TIME,
+      'item' => $pay->item,
+      'parent_txn_id' => null,
+      'method' => 'paypal',
+      'create_date' => format_date(time(),'custom','Y-m-d h:i:s') ,
+    ))
+  ->execute();
+
+
+    // TODO Please convert this statement to the D7 database API syntax.
+    db_query("update {vwcredits_tmpcr} set bal=bal+{$refcr} where uid=$uid");
+    // TODO Please convert this statement to the D7 database API syntax.
+    db_query("update {vwcredits_credit} set bal=bal+{$refcr} where uid=$uid");
+
+
+  }
+
+
+  echo "done";
+  exit;
+}
+
+
+/**
+ * used to create transactions from completed transfers
+ *
+ */
+
+
+function vwcredits_cron() {
+/*correctable d*/
+  db_query("delete from {vwcredits_payment} where adddate(cdate,interval 1 hour) <now() and status=0"); ///unpaid payment intitiations deleted hourly.
+
+  db_query("delete from {vwcredits_transaction} where amt=0 and credit=0 and applied=1");
+  $types = array();
+$typeo=array();
+
+
+  $typeo = array('vls', 'vconsult', 'v2wvc', 'vconf');
+
+foreach($typeo as $type){
+
+	if(module_exists($type))
+	$types[]=$type;
+}
+
+  foreach ($types as $type) {
+    $x = variable_get('vwcredits_' . $type . '_idletime', 40);
+    if (!$x) {
+      $x = 40;
+    }
+    $t = REQUEST_TIME;
+
+    // TODO Please convert this statement to the D7 database API syntax.
+    db_query("update {vwcredits_transaction} a inner join {{$type}_rooms} r on (r.nid=a.room_nid) set
+a.applied=1,
+a.app_time=from_unixtime(r.timelastaccess)  where a.applied=0 and a.type in ('ownersgain','ownerscost') and  adddate(from_unixtime(r.timelastaccess),interval $x second) <now()  ");
+
+    db_query("update {vwcredits_transaction} a inner join {node} n on (n.nid=a.room_nid) set a.applied=1,a.app_time=from_unixtime(a.pts) where a.applied=0 and adddate(from_unixtime(a.pts),interval $x second) <now() and a.type in ('roomcost','ownersroomcost')   and n.type='$type' ");
+  }
+
+
+
+
+  ///  	db_query("update {vwcredits_credit} c set c.bal=(select bal from {vwcredits_tmpcr} t where t.uid=c.uid) ");
+
+  echo "cron run<br/>\r\n";
+
+}
+
+
+
+
+
+
+
+

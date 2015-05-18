@@ -1,0 +1,306 @@
+<?php
+/**
+ * @file
+ * Install, update and uninstall functions for the vwrooms module.
+ *
+ */
+
+
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwrooms_schema() {
+  $schema = array();
+
+  $schema['vwrooms_users'] = array(
+  'description' => '',
+  'fields' => array(
+    'id' => array(
+      'description' => '',
+      'type' => 'serial',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+),
+    'uid' => array(
+      'description' => '',
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+),
+    'uname' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '100',
+      'not null' => TRUE,
+),
+    'hash' => array(
+      'description' => '',
+      'type' => 'char',
+      'length' => '32',
+      'not null' => false,
+),
+    'timestamp' => array(
+      'description' => '',
+      'mysql_type' => 'datetime',
+      'not null' => FALSE,
+),
+    'room_nid' => array(
+      'description' => '',
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+),
+    'room' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '100',
+      'not null' => TRUE,
+),
+    'o' => array(
+      'description' => '',
+      'type' => 'int',
+      'size' => 'tiny',
+      'not null' => TRUE,
+),
+),
+  'primary key' => array('id'),
+);
+
+
+  $schema['vwrooms_thumb'] = array(
+  'description' => '',
+  'fields' => array(
+    'fid' => array(
+      'description' => '',
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+),
+    'nid' => array(
+      'description' => '',
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+),
+    'thumb' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '250',
+      'not null' => false,
+),
+    'snapshot' => array(
+      'description' => '',
+      'type' => 'varchar',
+      'length' => '250',
+      'not null' => false,
+),
+),
+);
+  $schema['vwrooms_stat'] = array(
+  'description' => '',
+  'fields' => array(
+    'room_nid' => array(
+      'description' => '',
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+),
+    'uc' => array(
+      'description' => '',
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+),
+),
+  'primary key' => array('room_nid'),
+);
+
+  $schema['vwrooms_ostat'] = array(
+  'description' => '',
+  'fields' => array(
+    'room_nid' => array(
+      'description' => '',
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+),
+    'uc' => array(
+      'description' => '',
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+),
+),
+  'primary key' => array('room_nid'),
+);
+
+
+
+  return $schema;
+}
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwrooms_install() {
+
+
+  // TODO The drupal_(un)install_schema functions are called automatically in D7.
+  // drupal_install_schema('vwrooms')
+  vwrooms_adminx();
+  $tag='room_tag';
+field_delete_field('field_vwroomstags');
+
+  $field = array(
+  		'field_name' => 'field_vwroomstags',
+  		      'type' => 'taxonomy_term_reference',
+  		      'cardinality'=>FIELD_CARDINALITY_UNLIMITED,
+  		      'settings' => array(
+  		'allowed_values' => array(
+  array(
+  		'vocabulary' => $tag,
+  		            'parent' => 0
+  ),
+  ),
+  ),
+  );
+  try{
+  	field_create_field($field);
+  }catch(Exception $e){
+  }
+}
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwrooms_uninstall() {
+	field_delete_field('field_vwroomstags');
+
+  // TODO The drupal_(un)install_schema functions are called automatically in D7.
+  // drupal_uninstall_schema('vwrooms')
+  db_query("delete from {variable} where name like 'vwrooms_%'");
+
+
+}
+
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function vwrooms_adminx() {
+  $form = array();
+
+  $form['vwrooms_in'] = array('#title' => t('Swf Inside site template'), '#type' => 'radios', '#options' => array(t('No'), t('Yes')), '#default_value' => variable_get('vwrooms_in', 0));
+
+  $form['vwrooms_snaphours'] = array('#title' => t('Snapshot delete interval'), '#default_value' => variable_get('vwrooms_snaphours', 0), '#type' => 'textfield', '#description' => t('snapshots    are deleted after x days.put 0 to disable this. or 0.5,1 etc'));
+  $form['vwrooms_snapcount'] = array('#title' => t('No of snapshots preserved'), '#default_value' => variable_get('vwrooms_snapcount', 0), '#type' => 'textfield', '#description' => t('max number of snapshots to keep 0 to disable'));
+  $form['vwrooms_loghours'] = array('#title' => t('File delete interval'), '#default_value' => variable_get('vwrooms_loghours', 1), '#type' => 'textfield', '#description' => t('logs and files   are deleted after x days.put 0 to disable this or 0,0.5,1 etc'));
+
+  $form['vwrooms_maxsnap'] = array('#title' => t('Number of snapshots displayed'), '#default_value' => variable_get('vwrooms_maxsnap', 5), '#type' => 'textfield', '#description' => t('Maximum number of snapshots displayed in room edit/create form for selecting the room image. 0 to display all. try to use  non-zero value'));
+
+  $form['vwrooms_tag'] = array('#title' => t('Search Tag Vocabulary'), '#type' => 'textfield', '#default_value' => variable_get('vwrooms_tag', 'Room Tag')
+
+	, '#description' => t('Terms in this vocabulary can be used for filtering rooms in room list. This vocabulary should be enabled for all node types of v2wvc,vconf,vconsult,vls when installed and have Tags (in vocabulary form under Settings)  checked so that Terms are created by users when submitting posts by typing a comma separated list.Also this vocabulary name should be unique ie not shared by any other vocabularies. !u', array('!u' => l(t('More help '), 'admin/help/taxonomy'))));
+
+  $form['vwrooms_idletime'] = array('#title' => t('Idle time'), '#default_value' => variable_get('vwrooms_idletime', 2), '#type' => 'textfield', '#description' => t('User idle time in minute. users with no activity report for more than this time marked as logged out.'));
+
+  $form['vwrooms_maxthumbsize'] = array('#title' => t('Max File size to upload'), '#default_value' => variable_get('vwrooms_maxthumbsize', 0), '#type' => 'textfield');
+  $form['vwrooms_maxresolution'] = array('#title' => t('Max Image Dimension wxh format'), '#default_value' => variable_get('vwrooms_maxresolution', '320x240'), '#type' => 'textfield');
+  //$form['vwrooms_minresolution']=array('#title'=>t('Min Image Dimension wxh format'),'#default_value'=>variable_get('vwrooms_minresolution','100x100'),'#type'=>'textfield');
+
+  global $base_url;
+  $form['vwrooms_saved'] = array('#type' => 'hidden', '#value' => $base_url, '#default_value' => $base_url);
+
+
+  $def = array('r' => 'r', 't' => 't', 'd' => 'd', 'u' => 'u', 'o' => 'o', 'n' => 'n', 'a' => 'a', 'g' => 'g', 'c' => 'c' );
+
+  $options = array('r' => t('Room Type'), 't' => t('Thumb'), 'd' => t('Description'), 'u' => t('Users Online'), 'o' => t('Owner'), 'n' => t('Owner Online'), 'a' => t('Access'), 'g' => t('Tags'));
+
+  if (module_exists('vwcredits')) {
+    $options['c'] = t('Cost');
+  }
+
+  $form['vwrooms_showlistcol'] = array('#type' => 'select', '#options' => $options, '#default_value' => $def, '#title' => t('Columns'), '#description' => t('Optional Columns for listing. some columns in 2nd row are dependent on first row, please see the default template vwrooms_mainlist for tweaking the default implementation '), '#multiple' => true);
+
+  $shot = array('t' => 't', 'u' => 'u', 'o' => 'o', 'a' => 'a', 'd' => 'd' );
+  $form['vwrooms_showt'] = array('#type' => 'select', '#options' => array('t' => t('Room Type'), 'u' => t('Users Online'), 'o' => t('Owner Online'), 'a' => t('Access'), 'd' => t('Tags')), '#default_value' => $shot, '#title' => t('Show Filters'), '#multiple' => true);
+
+  $form['vwrooms_filtcol_u'] = array('#title' => t('Users Online'), '#type' => 'select', '#options' => array(0 => t('All'), 1 => t('No'), 2 => t('Yes')), '#default_value' => 0);
+  $form['vwrooms_filtcol_o'] = array('#title' => t('Owner Online'), '#type' => 'select', '#options' => array(0 => t('All'), 1 => t('No'), 2 => t('Yes')), '#default_value' => 0);
+  $form['vwrooms_filtcol_a'] = array('#title' => t('Access'), '#type' => 'select', '#options' => array(0 => t('All'), 'P' => t('Private'), 'F' => t('Public')), '#default_value' => 0);
+  ///$form['d']['vwrooms_filtcol_f']=array('#title'=>t('Room Cost'),'#type'=>'select','#options'=>array(0=>t('All'),1=>t('No'),2=>t('Yes')),'#default_value'=>variable_get('vwrooms_filtcol_o',0));
+
+  foreach ($form as $nm => $vl) {
+    variable_set($nm, $vl['#default_value']);
+
+  }
+
+  $f = db_query("select vid from {taxonomy_vocabulary} where name like 'Room Tag' and machine_name='room_tag'")->fetchField();
+$tag='room_tag';
+  if (!$f) {
+    db_query("
+INSERT INTO {taxonomy_vocabulary} (`vid`, `name`,`machine_name`, `description`,  `hierarchy`, `module`, `weight`) VALUES
+(null, 'Room Tag', 'room_tag','searchable tags in room list',  0, 'taxonomy', 0);
+");
+  }
+
+
+
+
+    $field = array(
+      'field_name' => 'field_vwroomstags',
+      'type' => 'taxonomy_term_reference',
+       'cardinality'=>FIELD_CARDINALITY_UNLIMITED,
+      'settings' => array(
+        'allowed_values' => array(
+    array(
+            'vocabulary' => $tag,
+            'parent' => 0
+    ),
+    ),
+    ),
+    );
+try{
+    field_create_field($field);
+    }catch(Exception $e){
+    }
+    try{
+
+
+
+}catch(Exception $e){}
+
+
+}
+
+function vwrooms_enable(){
+
+	db_query("REPLACE into {role_permission} SET permission='vwrooms upload file', module='vwrooms', rid = '2';");
+
+}
+
+function vwrooms_requirements($phase){
+
+	if($phase=='install'){
+/*
+		if(!module_exists('date_api'||!module_exists('date_popup'))){
+
+			$requirements['vwrooms'] = array(
+			          'title' => '',
+			          'description' => t('Videowhisper Room  Module requires  date_api and date_popup from  http://drupal.org/project/date'),
+			          'value' => '',
+			          'severity' => REQUIREMENT_ERROR,
+			);
+
+return $requirements;
+		}
+		*/
+
+	}
+return array();
+
+}

@@ -1,0 +1,8 @@
+name = E-Health Custom Functions
+description = E-Health Custom Functions.
+core = 7.x
+php = 5.1
+configure = admin/config/block_views
+files[] = ehealth.module
+
+

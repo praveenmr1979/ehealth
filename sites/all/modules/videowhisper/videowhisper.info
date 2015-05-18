@@ -1,0 +1,11 @@
+name = VideoWhisper Webcam Plugins
+description = Includes multiple modules for video communications including room listing, pay per view access control: Video Conference integration, Video Chat integration, Video Consultation integration, Live Streaming integration, Room List, Credits.
+version = “7.x-1.3”
+
+
+; Information added by Drupal.org packaging script on 2014-11-15
+version = "7.x-1.5"
+core = "7.x"
+project = "videowhisper"
+datestamp = "1416072782"
+

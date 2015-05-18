@@ -1,0 +1,43 @@
+<?php
+function js_functions_init() {
+	global $base_url;
+	$module_path = drupal_get_path('module', 'js_functions');
+	if(load_theme_hospital()) {
+		if($_SESSION['hid'] == '') {
+			$_SESSION['hid'] = arg(2);
+		}
+		$hid = $_SESSION['hid'];
+		
+		drupal_add_js($base_url.'/'.$module_path.'/js/custom.js');
+		$hospital_path = $base_url."/home/hospitals/".$hid;
+		$json_path = $base_url."/hospital-menu/json?hid=".$hid;
+		//print $json_path;
+		$settings = array(
+			'url' => $hospital_path,
+			'json_url' => $json_path,
+			'rating_text' => t("Add Your Rating"),
+			'menu_id' => arg(4)			
+		);
+		drupal_add_js(array('js_functions' => $settings), 'setting');
+	}
+	if(drupal_is_front_page()) {
+		
+		//~ drupal_add_css($base_url.'/'.$module_path.'/css/ufd-base.css');	
+		//~ drupal_add_css($base_url.'/'.$module_path.'/css/plain/plain.css');	
+		//drupal_add_js($base_url.'/'.$module_path.'/js/jquery-1.4.2.min.js');	
+		//~ drupal_add_js($base_url.'/'.$module_path.'/js/ui.core.js');	
+		//~ drupal_add_js($base_url.'/'.$module_path.'/js/jquery.bgiframe.min.js');	
+		//~ drupal_add_js($base_url.'/'.$module_path.'/js/jquery.ui.ufd.min.js');	
+		//~ drupal_add_js($base_url.'/'.$module_path.'/js/jquery-ui.js');
+		//~ drupal_add_css($base_url.'/'.$module_path.'/css/jquery.ui.combobox.css');		
+		//~ drupal_add_js($base_url.'/'.$module_path.'/js/functions.js');
+		drupal_add_js($base_url.'/'.$module_path.'/js/common.js');
+	}
+	//$node = node_load(10);
+	//p($node);exit;
+}
+
+
+
+
+

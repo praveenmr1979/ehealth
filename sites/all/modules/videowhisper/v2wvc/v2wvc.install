@@ -1,0 +1,1488 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * 2 Way Video Chat Integration Module : Installation
+ */
+
+/**
+ * Implements hook_install().
+ */
+function v2wvc_install() {
+  // TODO The drupal_(un)install_schema functions are called automatically in D7.
+  // drupal_install_schema('v2wvc')
+	error_reporting(0);
+
+	$form_state=array();
+	$form_state['values']=array();
+	drupal_form_submit('v2wvc_admini', $form_state);
+	unset($_SESSION['messages']['status']);
+vwrooms_crsetup('v2wvc');
+
+	$tag='room_tag';
+
+	$field = array(
+		'field_name' => 'field_vwroomstags',
+		      'type' => 'taxonomy_term_reference',
+	'cardinality'=>FIELD_CARDINALITY_UNLIMITED,
+
+		      'settings' => array(
+		'allowed_values' => array(
+	array(
+		'vocabulary' => $tag,
+		            'parent' => 0
+	),
+	),
+	),
+	);
+	try{
+		field_create_field($field);
+	}catch(Exception $e){
+	}
+	try{
+
+		$instance = array(
+		'field_name' => 'field_vwroomstags',
+		'entity_type' => 'node',
+		        'label' => 'Room Tags',
+		        'bundle' => 'v2wvc',
+		'required' => false,
+		        'widget' => array(
+		'type' => 'taxonomy_autocomplete'
+		),
+		'display' => array(
+		'default' => array('type' => 'hidden'),
+		            'teaser' => array('type' => 'hidden')
+		)
+		);
+
+		field_create_instance($instance);
+
+	}catch(Exception $e){
+	}
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function v2wvc_uninstall() {
+  // TODO The drupal_(un)install_schema functions are called automatically in D7.
+  // drupal_uninstall_schema('v2wvc')
+  db_query("delete from {variable} where name like 'v2wvc_%'");
+  $result = db_query("SELECT nid FROM {node} WHERE type='v2wvc'");
+
+  while ($row = $result->fetchAssoc()){
+  	node_delete($row['nid']);
+  	$deleted_count+=1;
+  }
+
+}
+
+/**
+ * Implements hook_schema().
+ *
+ * @return array of Schema API table definitions.
+ */
+function v2wvc_schema() {
+  $schema['v2wvc_rooms'] = array(
+    'fields' => array(
+      'vid' => array('type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => "Room ID",
+      ),
+      'nid' => array('type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => "Node ID",
+      ),
+      'timecreated' => array('type' => 'int', 'not null' => TRUE, 'default' => 0,
+        'description' => "Created Timestamp (Unix Timestamp, which is limited to values above Jan 1, 1970)",
+      ),
+      'timelastaccess' => array('type' => 'int', 'not null' => TRUE, 'default' => 0,
+        'description' => "Last Access Timestamp (Unix Timestamp, which is limited to values above Jan 1, 1970)",
+      ),
+      'timeexpire' => array('type' => 'int', 'not null' => TRUE, 'default' => 0,
+        'description' => "Expiration Timestamp (Unix Timestamp, which is limited to values above Jan 1, 1970)",
+      ),
+      'timeout' => array('type' => 'int', 'not null' => TRUE, 'default' => 0,
+        'description' => "Clean if not used",
+      ),
+      'credits' => array('type' => 'int', 'not null' => TRUE, 'default' => 0,
+        'description' => "Available time in minutes",
+      ),
+      'timeused' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0,
+        'description' => "How long was this used for",
+      ),
+      'welcome' => array('type' => 'text', 'not null' => FALSE,
+        // NOTE:  On MySQL, text fields cannot have default values.
+        'description' => "Room welcome message.",
+      ),
+      'room' => array('type' => 'varchar', 'length' => '64', 'not null' => FALSE,
+        'description' => "Room welcome message.",
+      ),
+      'camwidth' => array(
+        'description' => 'Camera resolution width',
+        'type' => 'int',
+        'size' => "small",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 320,
+      ),
+      'camheight' => array(
+        'description' => 'Camera resolution height',
+        'type' => 'int',
+        'size' => "small",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 240,
+      ),
+      'camfps' => array(
+        'description' => 'Camera frames per second',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 15,
+      ),
+      'micrate' => array(
+        'description' => 'Micrate',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 22,
+      ),
+      'bandwidth' => array(
+        'description' => 'Default bandwidth per stream',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 40960,
+      ),
+      'maxbandwidth' => array(
+        'description' => 'Maximum bandwidth per stream',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 81920,
+      ),
+      'visitors' => array(
+        'description' => 'Allow visitors',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'filterregex' => array('type' => 'varchar', 'length' => '255', 'not null' => FALSE,
+        'description' => "Filter regex.",
+        'default' => "(?i)(fuck|cunt)(?-i)",
+      ),
+      'filterreplace' => array('type' => 'varchar', 'length' => '255', 'not null' => FALSE,
+        'description' => "Filter replace.",
+        'default' => " ** ",
+      ),
+      'verbose' => array(
+        'description' => 'Verbose level',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 4,
+      ),
+      'emoticons' => array(
+        'description' => 'Allow emoticons',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'enablep2p' => array(
+        'description' => 'Setting parameters',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'showtimer' => array(
+        'description' => 'Setting parameters',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'sendtextchat' => array(
+        'description' => 'Setting parameters',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'enableserver' => array(
+        'description' => 'Setting parameters',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'showtextchat' => array(
+        'description' => 'Setting parameters',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'enabledvideo' => array(
+        'description' => 'Setting parameters',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'enabledsound' => array(
+        'description' => 'Setting parameters',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'configuresource' => array(
+        'description' => 'Setting parameters',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'configureconnection' => array(
+        'description' => 'Setting parameters',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'showcamsettings' => array(
+        'description' => 'Setting parameters',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'enablesoundfx' => array(
+        'description' => 'Setting parameters',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'enablenext' => array(
+        'description' => 'Setting parameters',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'enablebuzz' => array(
+        'description' => 'Setting parameters',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+
+         'disablead' => array(
+        'description' => 'Setting parameters',
+        'type' => 'int',
+        'size' => "tiny",
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    'users' => array(
+      'description' => 'users',
+      'type' => 'text',
+      'not null' => false,
+    ),
+    'moderators' => array(
+      'description' => 'moderators',
+      'type' => 'text',
+      'not null' => false,
+    )
+
+    ),
+    'indexes' => array(
+      'timelastaccess' => array('timelastaccess'),
+      'room' => array('room'),
+      'nid' => array('nid'),
+    ),
+    'primary key' => array('vid', 'nid'),
+  );
+
+  return $schema;
+}
+
+/**
+ * Implements hook_requirements().
+ */
+function v2wvc_requirements($phase) {
+  $requirements = array();
+  $t = get_t();
+
+  if ($phase == 'update') {
+
+    if (!variable_get('vwrooms_saved', 0)) {
+      $requirements['drupalvw'] = array(
+          'description' => t('2 Way Video Chat module not installed. Videowhisper Rooms needs to be installed first. Please   reinstall this module.' ),
+          'value' => '',
+          'severity' => REQUIREMENT_ERROR,
+  	);
+    }
+
+    return $requirements;
+  }
+
+  if ($phase != 'runtime') {
+    return $requirements;
+  }
+
+  if ($phase == 'runtime') {
+
+    $path = variable_get('v2wvc_path', "/2wvc/");
+
+    if (!file_exists("." . $path)) {
+      $requirements['v2wvc_2wvc'] = array(
+        'title' => $t('VideoWhisper 2 Way Video Chat'),
+        'value' => $t('Not found'),
+        'description' => $t('Please <a target="_blank" href="http://www.videowhisper.com/?p=Drupal+2+Way+Video+Chat+Module">download 2 Way Video Chat application</a> and upload it in: ') . $path,
+        'severity' => REQUIREMENT_ERROR,
+      );
+    }
+
+    if (!user_access('access 2wayvideochat room', drupal_anonymous_user())) {
+      $requirements['v2wvc_access'] = array(
+        'title' => $t('2 Way Video Chat anonymous access'),
+        'value' => $t('Access denied'),
+        'description' => $t('Invited parties (that could be anonymous users) cannot currently access chat rooms. Please assign the "access 2wayvideochat" permission to the anonymous user role.'),
+        'severity' => REQUIREMENT_WARNING,
+      );
+    }
+  }
+
+  return $requirements;
+}
+
+/**
+ * Implements hook_enable().
+ */
+function v2wvc_enable() {
+	db_query("REPLACE INTO {role_permission} SET permission='access 2wayvideochat room' ,module='v2wvc', rid = '1';");
+	db_query("REPLACE INTO {role_permission} SET permission='access 2wayvideochat room' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='create 2wayvideochat room' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit 2wayvideochat room' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='delete 2wayvideochat room' ,module='v2wvc', rid = '2';");
+
+	db_query("REPLACE INTO {role_permission} SET permission='edit welcome message' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit instantaccess' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit credits' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit cleanup' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit availability' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit bandwidth' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit maxbandwidth' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit filterregex' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit filterreplace' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit micrate' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit camfps' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit camheight' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit camwidth' ,module='v2wvc', rid = '2';");
+
+	db_query("REPLACE INTO {role_permission} SET permission='edit enablebuzz' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit emoticons' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit verbose level' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit enablep2p' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit showtimer' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit sendtextchat' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit enableserver' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit showtextchat' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit enabledvideo' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit enabledsound' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit configuresource' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit showcamsettings' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit enablesoundfx' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit enablenext' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='edit configureconnection' ,module='v2wvc', rid = '2';");
+
+	db_query("REPLACE INTO {role_permission} SET permission='use enablebuzz' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='use emoticons' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='use enablep2p' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='use showtimer' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='use sendtextchat' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='use enableserver' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='use showtextchat' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='use enabledvideo' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='use enabledsound' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='use configuresource' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='use showcamsettings' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='use enablesoundfx' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='use enablenext' ,module='v2wvc', rid = '2';");
+	db_query("REPLACE INTO {role_permission} SET permission='use configureconnection' ,module='v2wvc', rid = '2';");
+
+	db_query("REPLACE INTO {role_permission} SET permission='use enablebuzz' ,module='v2wvc', rid = '1';");
+	db_query("REPLACE INTO {role_permission} SET permission='use emoticons' ,module='v2wvc', rid = '1';");
+	db_query("REPLACE INTO {role_permission} SET permission='use enablep2p' ,module='v2wvc', rid = '1';");
+	db_query("REPLACE INTO {role_permission} SET permission='use showtimer' ,module='v2wvc', rid = '1';");
+	db_query("REPLACE INTO {role_permission} SET permission='use sendtextchat' ,module='v2wvc', rid = '1';");
+	db_query("REPLACE INTO {role_permission} SET permission='use enableserver' ,module='v2wvc', rid = '1';");
+	db_query("REPLACE INTO {role_permission} SET permission='use showtextchat' ,module='v2wvc', rid = '1';");
+	db_query("REPLACE INTO {role_permission} SET permission='use enabledvideo' ,module='v2wvc', rid = '1';");
+	db_query("REPLACE INTO {role_permission} SET permission='use enabledsound' ,module='v2wvc', rid = '1';");
+	db_query("REPLACE INTO {role_permission} SET permission='use configuresource' ,module='v2wvc', rid = '1';");
+	db_query("REPLACE INTO {role_permission} SET permission='use showcamsettings' ,module='v2wvc', rid = '1';");
+	db_query("REPLACE INTO {role_permission} SET permission='use enablesoundfx' ,module='v2wvc', rid = '1';");
+	db_query("REPLACE INTO {role_permission} SET permission='use enablenext' ,module='v2wvc', rid = '1';");
+	db_query("REPLACE INTO {role_permission} SET permission='use configureconnection' ,module='v2wvc', rid = '1';");
+
+}
+
+function v2wvc_admini($form, &$form_state) {
+	$form = array();
+
+	$form['v2wvc_rtmp3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('RTMP application address'),
+    '#default_value' =>  "rtmp://server-domain-or-ip/videowhisper",
+    '#size' => 48,
+    '#maxlength' => 255,
+    '#description' => t("RTMP application address on a rtmp server."),
+    '#required' => TRUE,
+	);
+	if (module_exists('vwcredits')) {
+
+		$form['v2wvc_paidrtmp3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('RTMP application address for Paid Rooms'),
+    '#default_value' => variable_get('v2wvc_paidrtmp3', ""),
+    '#size' => 48,
+    '#maxlength' => 255,
+    '#description' => t('Separate RTMP application address on a rtmp server for paid rooms. Leave blank to use the same.'),
+    '#required' => false,
+		);
+
+
+
+	}
+
+
+
+	$form['v2wvc_rtmfp3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('RTMFP application address'),
+    '#default_value' => variable_get('v2wvc_rtmfp3', "rtmfp://stratus.adobe.com/f1533cc06e4de4b56399b10d-1a624022ff71/"),
+    '#size' => 48,
+    '#maxlength' => 255,
+    '#description' => t('RTMFP application address on a rtmfp server (required for P2P). Register an <a target="_blank" href="https://www.adobe.com/cfusion/entitlement/index.cfm?e=cirrus">Adobe Cirrus</a> developer key (former Stratus) to get a rtmfp address for your site.'),
+    '#required' => TRUE,
+	);
+
+	$form['v2wvc_amf3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('RTMP AMF'),
+    '#default_value' => variable_get('v2wvc_amf3', "AMF3"),
+    '#size' => 48,
+    '#maxlength' => 10,
+    '#description' => t("RTMP AMF (AMF3 : Red5, Wowza, FMIS3, FMIS3.5)"),
+    '#required' => TRUE,
+	);
+
+	$form['v2wvc_room_prefix3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Default room name'),
+    '#default_value' => variable_get('v2wvc_room_prefix3', "InstantChat"),
+    '#size' => 24,
+    '#maxlength' => 48,
+    '#description' => t("Default room name. A hash code is added if not changed by room creator."),
+    '#required' => TRUE,
+	);
+
+	$found = "";
+	$path = variable_get('v2wvc_path', "/" . drupal_get_path("module", "v2wvc") . "/" . "v2wvc" . "/");
+	if (file_exists("." . $path)) {
+		$found = t('Application folder detected: ') . $path;
+	}
+	else {
+		$found = t('Please <a target="_blank" href="@url-download">download 2 Way Video Chat application</a>. Application folder NOT detected: %path', array('@url-download' => 'http://www.videowhisper.com/?p=Drupal+2+Way+Video+Chat+Module', '%path' => $path));
+	}
+	variable_del('v2wvc_path');
+/*
+	$form['v2wvc_path'] = array(
+    '#type' => 'textfield',
+    '#title' => t('2 Way Video Chat path'),
+    '#default_value' =>  "/" . drupal_get_path("module", "v2wvc") . "/" . "v2wvc" . "/",
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Path for the 2 Way Video Chat application folder.") . " " . $found,
+    '#required' => TRUE,
+	);
+*/
+	$form['v2wvc_cammaxbandwidth3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('camMaxBandwidth'),
+    '#default_value' => variable_get('v2wvc_cammaxbandwidth3', "81920"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set camMaxBandwidth parameters."),
+    '#required' => TRUE,
+	);
+
+	$form['v2wvc_bufferlive3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('bufferLive'),
+    '#default_value' => variable_get('v2wvc_bufferlive3', "0.1"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set bufferLive parameters."),
+    '#required' => TRUE,
+	);
+
+	$form['v2wvc_bufferfull3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('bufferFull'),
+    '#default_value' => variable_get('v2wvc_bufferfull3', "0.1"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set bufferFull parameters."),
+    '#required' => TRUE,
+	);
+
+	$form['v2wvc_bufferliveplayback3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('bufferLivePlayback'),
+    '#default_value' => variable_get('v2wvc_bufferliveplayback3', "0.1"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set bufferLivePlayback parameters."),
+    '#required' => TRUE,
+	);
+
+	$form['v2wvc_bufferfullplayback3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('bufferFullPlayback'),
+    '#default_value' => variable_get('v2wvc_bufferfullplayback3', "0.1"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set bufferFullPlayback parameters."),
+    '#required' => TRUE,
+	);
+
+	$form['v2wvc_emoticons3'] = array(
+    '#type' => 'radios',
+    '#title' => t('disable emoticons'),
+    '#default_value' => variable_get('v2wvc_emoticons3', 0),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set emoticons parameters'),
+	);
+
+	$form['v2wvc_disablebandwidthdetection3'] = array(
+    '#type' => 'radios',
+    '#title' => t('disableBandwidthDetection'),
+    '#default_value' => variable_get('v2wvc_disablebandwidthdetection3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set disableBandwidthDetection parameters'),
+	);
+
+	$form['v2wvc_limitbybandwidth3'] = array(
+    '#type' => 'radios',
+    '#title' => t('limitBybandwidth'),
+    '#default_value' => variable_get('v2wvc_limitbybandwidth3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set limitBybandwidth parameters'),
+	);
+
+	$form['v2wvc_autosnapshots3'] = array(
+    '#type' => 'radios',
+    '#title' => t('Autosnapshots'),
+    '#default_value' => variable_get('v2wvc_autosnapshots3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set autosnapshots parameters'),
+	);
+
+	$form['v2wvc_requestsnapshot3'] = array(
+    '#type' => 'radios',
+    '#title' => t('requestSnapshot'),
+    '#default_value' => variable_get('v2wvc_requestsnapshot3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set requestSnapshot parameters'),
+	);
+
+	$form['v2wvc_snapshotstime3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('snapshotsTime'),
+    '#default_value' => variable_get('v2wvc_snapshotstime3', "20000"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set snapshotsTime parameters."),
+    '#required' => TRUE,
+	);
+
+	$form['v2wvc_adserver3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('adServer'),
+    '#default_value' => variable_get('v2wvc_adserver3', "2_ads.php"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set adServer parameters."),
+    '#required' => TRUE,
+	);
+
+	$form['v2wvc_adsinterval3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('adsInterval'),
+    '#default_value' => variable_get('v2wvc_adsinterval3', "600000"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set adsInterval parameters."),
+    '#required' => TRUE,
+	);
+
+	$form['v2wvc_adstimeout3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('adsTimeout'),
+    '#default_value' => variable_get('v2wvc_adstimeout3', "20000"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set adsTimeout parameters."),
+    '#required' => TRUE,
+	);
+
+	$form['v2wvc_enableserver3'] = array(
+    '#type' => 'radios',
+    '#title' => t('enableServer'),
+    '#default_value' => variable_get('v2wvc_enableserver3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set enableServer parameters'),
+	);
+
+	$form['v2wvc_enablep2p3'] = array(
+    '#type' => 'radios',
+    '#title' => t('enableP2P'),
+    '#default_value' => variable_get('v2wvc_enablep2p3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set enableP2P parameters'),
+	);
+
+	$form['v2wvc_showtimer3'] = array(
+    '#type' => 'radios',
+    '#title' => t('showTimer'),
+    '#default_value' => variable_get('v2wvc_showtimer3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set showTimer parameters'),
+	);
+
+	$form['v2wvc_showtextchat3'] = array(
+    '#type' => 'radios',
+    '#title' => t('showTextchat'),
+    '#default_value' => variable_get('v2wvc_showtextchat3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set showTextchat parameters'),
+	);
+
+	$form['v2wvc_sendtextchat3'] = array(
+    '#type' => 'radios',
+    '#title' => t('sendTextchat'),
+    '#default_value' => variable_get('v2wvc_sendtextchat3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set sendTextchat parameters'),
+	);
+
+	$form['v2wvc_enabledvideo3'] = array(
+    '#type' => 'radios',
+    '#title' => t('enabledVideo'),
+    '#default_value' => variable_get('v2wvc_enabledvideo3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set enabledVideo parameters'),
+	);
+
+	$form['v2wvc_enabledsound3'] = array(
+    '#type' => 'radios',
+    '#title' => t('enabledSound'),
+    '#default_value' => variable_get('v2wvc_enabledsound3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set enabledSound parameters'),
+	);
+
+	$form['v2wvc_configuresource3'] = array(
+    '#type' => 'radios',
+    '#title' => t('configureSource'),
+    '#default_value' => variable_get('v2wvc_configuresource3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set configureSource parameters'),
+	);
+
+	$form['v2wvc_configureconnection3'] = array(
+    '#type' => 'radios',
+    '#title' => t('configureConnection'),
+    '#default_value' => variable_get('v2wvc_configureconnection3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set configureConnection parameters'),
+	);
+
+	$form['v2wvc_showcamsettings3'] = array(
+    '#type' => 'radios',
+    '#title' => t('showCamsettings'),
+    '#default_value' => variable_get('v2wvc_showcamsettings3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set showCamsettings parameters'),
+	);
+
+	$form['v2wvc_enablesoundfx3'] = array(
+    '#type' => 'radios',
+    '#title' => t('enableSoundfx'),
+    '#default_value' => variable_get('v2wvc_enablesoundfx3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set enableSoundfx parameters'),
+	);
+
+	$form['v2wvc_enablenext3'] = array(
+    '#type' => 'radios',
+    '#title' => t('enableNext'),
+    '#default_value' => variable_get('v2wvc_enablenext3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set enableNext parameters'),
+	);
+
+	$form['v2wvc_enablebuzz3'] = array(
+    '#type' => 'radios',
+    '#title' => t('enableBuzz'),
+    '#default_value' => variable_get('v2wvc_enablebuzz3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set enableBuzz parameters'),
+	);
+
+	$form['fre'] = array('#type' => 'fieldset', '#title' => t('Additional free mode settings'), '#collapsible' => true, '#collapsed' => true, '#tree' => false);
+	$options = implode(",", array("320x240" => "320x240", "160x120" => "160x120", "176x144" => "176x144"));
+
+	$form['fre']['v2wvc_defaultresolution'] = array(
+  '#type' => 'textfield', '#default_value' => variable_get('v2wvc_defaultresolution', $options),
+  '#title' => t('Resolutions'),
+  '#description' => t('Comma separated camera resoluton  list: 320X240,160X120,176X144,352X288,640X480 *'),
+
+	);
+
+	$form['fre']['v2wvc_defaultresolutiond'] = array(
+    '#type' => 'textfield', '#default_value' => variable_get('v2wvc_defaultresolutiond', '176x144'),
+    '#title' => t('Default Resolution'),
+	'#options' => array("320x240" => "320x240", "160x120" => "160x120", "176x144" => "176x144"),
+	);
+
+
+	$options = implode(",", array("15" => "15", "10" => "10", "12" => "12", "20" => "20"));
+
+	$form['fre']['v2wvc_defaultcamfps'] = array(
+    '#type' => 'textfield', '#default_value' => variable_get('v2wvc_defaultcamfps', $options),
+    '#title' => t('Camera FPS'),
+    '#description' => t('Comma separated camera frames per second list list :15,10,12,20,25,30 *'),
+
+	);
+
+	$form['fre']['v2wvc_defaultcamfpsd'] = array(
+      '#type' => 'textfield', '#default_value' => variable_get('v2wvc_defaultcamfpsd', '20'),
+      	'#options' => array("15" => "15", "10" => "10", "12" => "12", "20" => "20"),
+      '#title' => t('Default Camera FPS'),
+
+	);
+
+	$options = implode(",", array("22" => "22", "11" => "11"));
+
+
+	$form['fre']['v2wvc_defaultmicrate'] = array(
+    '#type' => 'textfield', '#default_value' => variable_get('v2wvc_defaultmicrate', $options),
+    '#title' => t('Micrates'),
+    '#description' => t('Comma separated  list : 22,11,44,48 *'),
+
+	);
+
+	$form['fre']['v2wvc_defaultmicrated'] = array(
+      '#type' => 'textfield', '#default_value' => variable_get('v2wvc_defaultmicrated', '22'),
+      '#title' => t('Default Micrate'),
+      '#options' => array("22" => "22", "11" => "11"),
+
+	);
+
+
+
+	$form['fre']['v2wvc_defaultbandwidth'] = array(
+  '#type' => 'textfield', '#default_value' => variable_get('v2wvc_defaultbandwidth', '50000'),
+  '#title' => t('Bandwidth'),
+    '#description' => t("Default bandwidth per video stream in bytes per second. "),
+  '#size' => '6',
+  '#maxlength' => 8,
+
+	);
+
+	$form['fre']['v2wvc_defaultmaxbandwidth'] = array(
+  '#type' => 'textfield', '#default_value' => variable_get('v2wvc_defaultmaxbandwidth', '100000'),
+  '#title' => t('Max Bandwidth'),
+    '#description' => t("Maximum bandwidth per video stream in bytes per second."),
+   '#size' => '6',
+    '#maxlength' => 8,
+	);
+
+
+
+
+	if (module_exists('vwcredits')) {
+
+		$form['paid'] = array('#type' => 'fieldset', '#collapsible' => true, '#collapsed' => true, '#title' => t('Additional Settings for paid mode'), '#tree' => false);
+
+		$options = implode(",", array("320x240" => "320x240", "160x120" => "160x120", "176x144" => "176x144", '352x288' => '352x288', '640x480' => '640x480' ));
+
+		$form[paid]['v2wvc_paidresolution'] = array(
+  	  '#type' => 'textfield', '#default_value' => variable_get('v2wvc_paidresolution', $options),
+  	  '#title' => t('Resolutions'),
+  	  '#description' => t('Comma separated camera resolution list for paid rooms *'),
+  	  	'#size' => '60',
+  	  '#maxlength' => 80,
+
+		);
+
+		$form[paid]['v2wvc_paidresolutiond'] = array(
+  	  	  '#type' => 'textfield', '#default_value' => variable_get('v2wvc_paidresolutiond', '640x480'),
+  	  	  '#title' => t('Default Resolution'),
+  	  	  	'#options' => array("320x240" => "320x240", "160x120" => "160x120", "176x144" => "176x144", '352x288' => '352x288', '640x480' => '640x480' ),
+  	  	  '#maxlength' => 80,
+
+		);
+
+
+		$options = implode(",", array("15" => "15", "10" => "10", "12" => "12", "20" => "20", "25" => "25", "30" => "30"));
+
+
+
+
+		$form['paid']['v2wvc_paidcamfps'] = array(
+    '#type' => 'textfield', '#default_value' => variable_get('v2wvc_paidcamfps', $options),
+    '#title' => t('Camera FPS'),
+    '#description' => t('Comma separated camera frames per second list for paid rooms *'),
+     	'#size' => '60',
+    '#maxlength' => 80,
+
+		);
+
+		$form['paid']['v2wvc_paidcamfpsd'] = array(
+    '#type' => 'textfield', '#default_value' => variable_get('v2wvc_paidcamfpsd', '30'),
+    '#title' => t('Default Camera FPS'),
+    '#options' => array("15" => "15", "10" => "10", "12" => "12", "20" => "20", "25" => "25", "30" => "30"),
+    '#maxlength' => 80,
+
+		);
+
+		$options = implode(",", array("22" => "22", "11" => "11", "44" => "44", "48" => "48"));
+
+		$form['paid']['v2wvc_paidmicrate'] = array(
+    '#type' => 'textfield', '#default_value' => variable_get('v2wvc_paidmicrate', $options),
+    '#title' => t('Micrates'),
+    '#description' => t('Comma separated  list of micrate for paid rooms *'),
+    	'#size' => '60',
+    '#maxlength' => 80,
+
+		);
+
+
+		$form['paid']['v2wvc_paidmicrated'] = array(
+  '#type' => 'textfield', '#default_value' => variable_get('v2wvc_paidmicrated', '48'),
+  '#title' => t('Default Micrate'),
+  '#options' => array("22" => "22", "11" => "11", "44" => "44", "48" => "48"),
+      '#maxlength' => 80,
+
+		);
+
+
+
+		$form['paid']['v2wvc_paidbandwidth'] = array(
+    '#type' => 'textfield', '#default_value' => variable_get('v2wvc_paidbandwidth', '70000'),
+    '#title' => t('Bandwidth'),
+    '#description' => t("Default bandwidth per video stream in bytes per second for paid rooms."),
+    	'#size' => '6',
+    '#maxlength' => 8,
+
+		);
+		$form['paid']['v2wvc_paidmaxbandwidth'] = array(
+    '#type' => 'textfield', '#default_value' => variable_get('v2wvc_paidmaxbandwidth', '200000'),
+    '#title' => t('Max. Bandwidth'),
+    '#description' => t("Maximum bandwidth per video stream in bytes per second for paid rooms."),
+  	'#size' => '6',
+    '#maxlength' => 8,
+
+		);
+
+
+	}
+
+
+	$form['v2wvc_bandwidth_markups'] = array('#markup' => '* arbitrary values not allowed due to encoding limitations. must be in the list given. If comma separated list last one default entry.');
+
+
+
+
+
+	return system_settings_form($form);
+}
+
+
+
+function v2wvc_admininstall($form, &$form_state) {
+	$form = array();
+
+	$form['v2wvc_rtmp3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('RTMP application address'),
+    '#default_value' => variable_get('v2wvc_rtmp3', "rtmp://server-domain-or-ip/videowhisper"),
+    '#size' => 48,
+    '#maxlength' => 255,
+    '#description' => t("RTMP application address on a rtmp server."),
+    '#required' => TRUE,
+	);
+	if (module_exists('vwcredits')) {
+
+		$form['v2wvc_paidrtmp3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('RTMP application address for Paid Rooms'),
+    '#default_value' => variable_get('v2wvc_paidrtmp3', ""),
+    '#size' => 48,
+    '#maxlength' => 255,
+    '#description' => t('Separate RTMP application address on a rtmp server for paid rooms. Leave blank to use the same.'),
+    '#required' => false,
+		);
+
+
+
+	}
+
+
+
+	$form['v2wvc_rtmfp3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('RTMFP application address'),
+    '#default_value' => variable_get('v2wvc_rtmfp3', "rtmfp://server-domain-or-ip/application/"),
+    '#size' => 48,
+    '#maxlength' => 255,
+    '#description' => t('RTMFP application address on a rtmfp server (required for P2P). Register an <a target="_blank" href="https://www.adobe.com/cfusion/entitlement/index.cfm?e=cirrus">Adobe Cirrus</a> developer key (former Stratus) to get a rtmfp address for your site.'),
+    '#required' => TRUE,
+	);
+
+	$form['v2wvc_amf3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('RTMP AMF'),
+    '#default_value' => variable_get('v2wvc_amf3', "AMF3"),
+    '#size' => 48,
+    '#maxlength' => 10,
+    '#description' => t("RTMP AMF (AMF3 : Red5, Wowza, FMIS3, FMIS3.5)"),
+    '#required' => TRUE,
+	);
+
+	$form['v2wvc_room_prefix3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Default room name'),
+    '#default_value' => variable_get('v2wvc_room_prefix3', "InstantChat"),
+    '#size' => 24,
+    '#maxlength' => 48,
+    '#description' => t("Default room name. A hash code is added if not changed by room creator."),
+    '#required' => TRUE,
+	);
+
+
+
+	$form['v2wvc_cammaxbandwidth3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('camMaxBandwidth'),
+    '#default_value' => variable_get('v2wvc_cammaxbandwidth3', "81920"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set camMaxBandwidth parameters."),
+    '#required' => TRUE,
+	);
+
+	$form['v2wvc_bufferlive3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('bufferLive'),
+    '#default_value' => variable_get('v2wvc_bufferlive3', "0.1"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set bufferLive parameters."),
+    '#required' => TRUE,
+	);
+
+	$form['v2wvc_bufferfull3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('bufferFull'),
+    '#default_value' => variable_get('v2wvc_bufferfull3', "0.1"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set bufferFull parameters."),
+    '#required' => TRUE,
+	);
+
+	$form['v2wvc_bufferliveplayback3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('bufferLivePlayback'),
+    '#default_value' => variable_get('v2wvc_bufferliveplayback3', "0.1"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set bufferLivePlayback parameters."),
+    '#required' => TRUE,
+	);
+
+	$form['v2wvc_bufferfullplayback3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('bufferFullPlayback'),
+    '#default_value' => variable_get('v2wvc_bufferfullplayback3', "0.1"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set bufferFullPlayback parameters."),
+    '#required' => TRUE,
+	);
+
+	$form['v2wvc_emoticons3'] = array(
+    '#type' => 'radios',
+    '#title' => t('disable emoticons'),
+    '#default_value' => variable_get('v2wvc_emoticons3', 0),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set emoticons parameters'),
+	);
+
+	$form['v2wvc_disablebandwidthdetection3'] = array(
+    '#type' => 'radios',
+    '#title' => t('disableBandwidthDetection'),
+    '#default_value' => variable_get('v2wvc_disablebandwidthdetection3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set disableBandwidthDetection parameters'),
+	);
+
+	$form['v2wvc_limitbybandwidth3'] = array(
+    '#type' => 'radios',
+    '#title' => t('limitBybandwidth'),
+    '#default_value' => variable_get('v2wvc_limitbybandwidth3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set limitBybandwidth parameters'),
+	);
+
+	$form['v2wvc_autosnapshots3'] = array(
+    '#type' => 'radios',
+    '#title' => t('Autosnapshots'),
+    '#default_value' => variable_get('v2wvc_autosnapshots3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set autosnapshots parameters'),
+	);
+
+	$form['v2wvc_requestsnapshot3'] = array(
+    '#type' => 'radios',
+    '#title' => t('requestSnapshot'),
+    '#default_value' => variable_get('v2wvc_requestsnapshot3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set requestSnapshot parameters'),
+	);
+
+	$form['v2wvc_snapshotstime3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('snapshotsTime'),
+    '#default_value' => variable_get('v2wvc_snapshotstime3', "20000"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set snapshotsTime parameters."),
+    '#required' => TRUE,
+	);
+
+	$form['v2wvc_adserver3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('adServer'),
+    '#default_value' => variable_get('v2wvc_adserver3', "2_ads.php"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set adServer parameters."),
+    '#required' => TRUE,
+	);
+
+	$form['v2wvc_adsinterval3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('adsInterval'),
+    '#default_value' => variable_get('v2wvc_adsinterval3', "600000"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set adsInterval parameters."),
+    '#required' => TRUE,
+	);
+
+	$form['v2wvc_adstimeout3'] = array(
+    '#type' => 'textfield',
+    '#title' => t('adsTimeout'),
+    '#default_value' => variable_get('v2wvc_adstimeout3', "20000"),
+    '#size' => 48,
+    '#maxlength' => 48,
+    '#description' => t("Set adsTimeout parameters."),
+    '#required' => TRUE,
+	);
+
+	$form['v2wvc_enableserver3'] = array(
+    '#type' => 'radios',
+    '#title' => t('enableServer'),
+    '#default_value' => variable_get('v2wvc_enableserver3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set enableServer parameters'),
+	);
+
+	$form['v2wvc_enablep2p3'] = array(
+    '#type' => 'radios',
+    '#title' => t('enableP2P'),
+    '#default_value' => variable_get('v2wvc_enablep2p3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set enableP2P parameters'),
+	);
+
+	$form['v2wvc_showtimer3'] = array(
+    '#type' => 'radios',
+    '#title' => t('showTimer'),
+    '#default_value' => variable_get('v2wvc_showtimer3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set showTimer parameters'),
+	);
+
+	$form['v2wvc_showtextchat3'] = array(
+    '#type' => 'radios',
+    '#title' => t('showTextchat'),
+    '#default_value' => variable_get('v2wvc_showtextchat3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set showTextchat parameters'),
+	);
+
+	$form['v2wvc_sendtextchat3'] = array(
+    '#type' => 'radios',
+    '#title' => t('sendTextchat'),
+    '#default_value' => variable_get('v2wvc_sendtextchat3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set sendTextchat parameters'),
+	);
+
+	$form['v2wvc_enabledvideo3'] = array(
+    '#type' => 'radios',
+    '#title' => t('enabledVideo'),
+    '#default_value' => variable_get('v2wvc_enabledvideo3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set enabledVideo parameters'),
+	);
+
+	$form['v2wvc_enabledsound3'] = array(
+    '#type' => 'radios',
+    '#title' => t('enabledSound'),
+    '#default_value' => variable_get('v2wvc_enabledsound3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set enabledSound parameters'),
+	);
+
+	$form['v2wvc_configuresource3'] = array(
+    '#type' => 'radios',
+    '#title' => t('configureSource'),
+    '#default_value' => variable_get('v2wvc_configuresource3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set configureSource parameters'),
+	);
+
+	$form['v2wvc_configureconnection3'] = array(
+    '#type' => 'radios',
+    '#title' => t('configureConnection'),
+    '#default_value' => variable_get('v2wvc_configureconnection3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set configureConnection parameters'),
+	);
+
+	$form['v2wvc_showcamsettings3'] = array(
+    '#type' => 'radios',
+    '#title' => t('showCamsettings'),
+    '#default_value' => variable_get('v2wvc_showcamsettings3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set showCamsettings parameters'),
+	);
+
+	$form['v2wvc_enablesoundfx3'] = array(
+    '#type' => 'radios',
+    '#title' => t('enableSoundfx'),
+    '#default_value' => variable_get('v2wvc_enablesoundfx3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set enableSoundfx parameters'),
+	);
+
+	$form['v2wvc_enablenext3'] = array(
+    '#type' => 'radios',
+    '#title' => t('enableNext'),
+    '#default_value' => variable_get('v2wvc_enablenext3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set enableNext parameters'),
+	);
+
+	$form['v2wvc_enablebuzz3'] = array(
+    '#type' => 'radios',
+    '#title' => t('enableBuzz'),
+    '#default_value' => variable_get('v2wvc_enablebuzz3', 1),
+    '#options' => array(t('No'), t('Yes')),
+    '#description' => t('Set enableBuzz parameters'),
+	);
+
+	$form['fre'] = array('#type' => 'fieldset', '#title' => t('Additional free mode settings'), '#collapsible' => true, '#collapsed' => true, '#tree' => false);
+	$options = implode(",", array("320x240" => "320x240", "160x120" => "160x120", "176x144" => "176x144"));
+
+	$form['fre']['v2wvc_defaultresolution'] = array(
+  '#type' => 'textfield', '#default_value' => variable_get('v2wvc_defaultresolution', $options),
+  '#title' => t('Resolutions'),
+  '#description' => t('Comma separated camera resoluton  list: 320X240,160X120,176X144,352X288,640X480 *'),
+
+	);
+
+	$form['fre']['v2wvc_defaultresolutiond'] = array(
+    '#type' => 'textfield', '#default_value' => variable_get('v2wvc_defaultresolutiond', '176x144'),
+    '#title' => t('Default Resolution'),
+	'#options' => array("320x240" => "320x240", "160x120" => "160x120", "176x144" => "176x144"),
+	);
+
+
+	$options = implode(",", array("15" => "15", "10" => "10", "12" => "12", "20" => "20"));
+
+	$form['fre']['v2wvc_defaultcamfps'] = array(
+    '#type' => 'textfield', '#default_value' => variable_get('v2wvc_defaultcamfps', $options),
+    '#title' => t('Camera FPS'),
+    '#description' => t('Comma separated camera frames per second list list :15,10,12,20,25,30 *'),
+
+	);
+
+	$form['fre']['v2wvc_defaultcamfpsd'] = array(
+      '#type' => 'textfield', '#default_value' => variable_get('v2wvc_defaultcamfpsd', '20'),
+      	'#options' => array("15" => "15", "10" => "10", "12" => "12", "20" => "20"),
+      '#title' => t('Default Camera FPS'),
+
+	);
+
+	$options = implode(",", array("22" => "22", "11" => "11"));
+
+
+	$form['fre']['v2wvc_defaultmicrate'] = array(
+    '#type' => 'textfield', '#default_value' => variable_get('v2wvc_defaultmicrate', $options),
+    '#title' => t('Micrates'),
+    '#description' => t('Comma separated  list : 22,11,44,48 *'),
+
+	);
+
+	$form['fre']['v2wvc_defaultmicrated'] = array(
+      '#type' => 'textfield', '#default_value' => variable_get('v2wvc_defaultmicrated', '22'),
+      '#title' => t('Default Micrate'),
+      '#options' => array("22" => "22", "11" => "11"),
+
+	);
+
+
+
+	$form['fre']['v2wvc_defaultbandwidth'] = array(
+  '#type' => 'textfield', '#default_value' => variable_get('v2wvc_defaultbandwidth', '50000'),
+  '#title' => t('Bandwidth'),
+    '#description' => t("Default bandwidth per video stream in bytes per second. "),
+  '#size' => '6',
+  '#maxlength' => 8,
+
+	);
+
+	$form['fre']['v2wvc_defaultmaxbandwidth'] = array(
+  '#type' => 'textfield', '#default_value' => variable_get('v2wvc_defaultmaxbandwidth', '100000'),
+  '#title' => t('Max Bandwidth'),
+    '#description' => t("Maximum bandwidth per video stream in bytes per second."),
+   '#size' => '6',
+    '#maxlength' => 8,
+	);
+
+
+
+
+	if (module_exists('vwcredits')) {
+
+		$form['paid'] = array('#type' => 'fieldset', '#collapsible' => true, '#collapsed' => true, '#title' => t('Additional Settings for paid mode'), '#tree' => false);
+
+		$options = implode(",", array("320x240" => "320x240", "160x120" => "160x120", "176x144" => "176x144", '352x288' => '352x288', '640x480' => '640x480' ));
+
+		$form[paid]['v2wvc_paidresolution'] = array(
+  	  '#type' => 'textfield', '#default_value' => variable_get('v2wvc_paidresolution', $options),
+  	  '#title' => t('Resolutions'),
+  	  '#description' => t('Comma separated camera resolution list for paid rooms *'),
+  	  	'#size' => '60',
+  	  '#maxlength' => 80,
+
+		);
+
+		$form[paid]['v2wvc_paidresolutiond'] = array(
+  	  	  '#type' => 'textfield', '#default_value' => variable_get('v2wvc_paidresolutiond', '640x480'),
+  	  	  '#title' => t('Default Resolution'),
+  	  	  	'#options' => array("320x240" => "320x240", "160x120" => "160x120", "176x144" => "176x144", '352x288' => '352x288', '640x480' => '640x480' ),
+  	  	  '#maxlength' => 80,
+
+		);
+
+
+		$options = implode(",", array("15" => "15", "10" => "10", "12" => "12", "20" => "20", "25" => "25", "30" => "30"));
+
+
+
+
+		$form['paid']['v2wvc_paidcamfps'] = array(
+    '#type' => 'textfield', '#default_value' => variable_get('v2wvc_paidcamfps', $options),
+    '#title' => t('Camera FPS'),
+    '#description' => t('Comma separated camera frames per second list for paid rooms *'),
+     	'#size' => '60',
+    '#maxlength' => 80,
+
+		);
+
+		$form['paid']['v2wvc_paidcamfpsd'] = array(
+    '#type' => 'textfield', '#default_value' => variable_get('v2wvc_paidcamfpsd', '30'),
+    '#title' => t('Default Camera FPS'),
+    '#options' => array("15" => "15", "10" => "10", "12" => "12", "20" => "20", "25" => "25", "30" => "30"),
+    '#maxlength' => 80,
+
+		);
+
+		$options = implode(",", array("22" => "22", "11" => "11", "44" => "44", "48" => "48"));
+
+		$form['paid']['v2wvc_paidmicrate'] = array(
+    '#type' => 'textfield', '#default_value' => variable_get('v2wvc_paidmicrate', $options),
+    '#title' => t('Micrates'),
+    '#description' => t('Comma separated  list of micrate for paid rooms *'),
+    	'#size' => '60',
+    '#maxlength' => 80,
+
+		);
+
+
+		$form['paid']['v2wvc_paidmicrated'] = array(
+  '#type' => 'textfield', '#default_value' => variable_get('v2wvc_paidmicrated', '48'),
+  '#title' => t('Default Micrate'),
+  '#options' => array("22" => "22", "11" => "11", "44" => "44", "48" => "48"),
+      '#maxlength' => 80,
+
+		);
+
+
+
+		$form['paid']['v2wvc_paidbandwidth'] = array(
+    '#type' => 'textfield', '#default_value' => variable_get('v2wvc_paidbandwidth', '70000'),
+    '#title' => t('Bandwidth'),
+    '#description' => t("Default bandwidth per video stream in bytes per second for paid rooms."),
+    	'#size' => '6',
+    '#maxlength' => 8,
+
+		);
+		$form['paid']['v2wvc_paidmaxbandwidth'] = array(
+    '#type' => 'textfield', '#default_value' => variable_get('v2wvc_paidmaxbandwidth', '200000'),
+    '#title' => t('Max. Bandwidth'),
+    '#description' => t("Maximum bandwidth per video stream in bytes per second for paid rooms."),
+  	'#size' => '6',
+    '#maxlength' => 8,
+
+		);
+
+
+	}
+
+
+	$form['v2wvc_bandwidth_markups'] = array('#markup' => '* arbitrary values not allowed due to encoding limitations. must be in the list given. If comma separated list last one default entry.');
+
+
+
+
+
+	return system_settings_form($form);
+}
+
+
+
+if(!function_exists('vwrooms_crsetup')){
+
+
+	function vwrooms_crsetup($type){
+		if(!module_exists('vwcredits'))
+		return;
+		$t=$type;
+
+		$form['f_' . $type]["vwcredits_{$t}_idletime"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Transfer apply interval'), '#default_value' => variable_get("vwcredits_{$t}_idletime", '60'), '#description' => t('after x seconds pending transactions will be applied'));
+
+
+		$form['f_' . $type]["vwcredits_{$t}_mm"] = array(
+	'#type' => 'select', '#title' => t('Module Mode'), '#descriptions' => t('Module mode'), '#default_value' => variable_get("vwcredits_{$t}_mm", 'User')
+		, '#options' => array('Free' => t('Free'), 'Paid' => t('Paid'), 'User' => t('As configured by room owner.'))
+		);
+
+
+		$form['f_' . $type]["vwcredits_{$t}_defaultgracetime"] = array(
+	'#type' => 'textfield', '#size' => 20, '#title' => t('Grace Period'), '#descriptions' => t('Grace Period'), '#default_value' => variable_get("vwcredits_{$t}_defaultgracetime", '30')
+		, '#description' => t('In seconds')
+		);
+
+		$form['f_' . $type]["vwcredits_{$t}_maxgracetime"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Max Grace Period'), '#descriptions' => t('When owner can change'), '#default_value' => variable_get("vwcredits_{$t}_maxgracetime", '300')
+		, '#description' => t('In seconds')
+
+		);
+		$form['f_' . $type]["vwcredits_{$t}_mingracetime"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Min Grace Period'), '#descriptions' => t('When owner can change'), '#default_value' => variable_get("vwcredits_{$t}_mingracetime", '0')
+		, '#description' => t('In seconds')
+
+		);
+
+
+
+		$form['f_' . $type]["vwcredits_{$t}_ownerscost"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Room Owner\'s cost'), '#default_value' => variable_get("vwcredits_{$t}_ownerscost", '0.1')
+
+		);
+
+		$form['f_' . $type]["vwcredits_{$t}_ownersroomcost"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Cost of using own room'), '#default_value' => variable_get("vwcredits_{$t}_ownersroomcost", '0.1')
+
+		);
+
+		$form['f_' . $type]["vwcredits_{$t}_roomcost"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('User Cost'), '#default_value' => variable_get("vwcredits_{$t}_roomcost", '4.0')
+		);
+
+		$form['f_' . $type]["vwcredits_{$t}_maxroomcost"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Max User Cost'), '#description' => t('When room owner can set'), '#default_value' => variable_get("vwcredits_{$t}_maxroomcost", '10')
+		);
+
+		$form['f_' . $type]["vwcredits_{$t}_minroomcost"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Min User Cost'), '#description' => t('When room owner can set'), '#default_value' => variable_get("vwcredits_{$t}_minroomcost", '0.0')
+		);
+
+		$form['f_' . $type]["vwcredits_{$t}_ownersgain"] = array(
+		'#type' => 'textfield', '#size' => 20, '#title' => t('Owner\'s gain'), '#default_value' => variable_get("vwcredits_{$t}_ownersgain", '0.75')
+		, '#description' => t('within 0-1'));
+
+		$arr=	    $form['f_' . $type];
+		foreach ($arr as $nm => $v) {
+			$value = $v['#default_value'];
+
+			variable_set($nm, $value);
+
+		}
+
+
+
+
+
+	}
+}
